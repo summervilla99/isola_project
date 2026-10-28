@@ -66,8 +66,8 @@ func _build_ui() -> void:
 	top_bar.add_child(settings)
 
 	sheet = PanelContainer.new()
-	sheet.position = Vector2(478, 72)
-	sheet.size = Vector2(350, 302)
+	sheet.position = Vector2(528, 72)
+	sheet.size = Vector2(300, 302)
 	sheet.add_theme_stylebox_override("panel", _panel_style(CREAM, 28, 5, Color("#3d315c")))
 	overlay.add_child(sheet)
 
@@ -95,8 +95,8 @@ func _show_welcome() -> void:
 	_set_game_controls_visible(false)
 	_clear_sheet()
 	sheet.visible = true
-	sheet.position = Vector2(478, 72)
-	sheet.size = Vector2(350, 302)
+	sheet.position = Vector2(528, 72)
+	sheet.size = Vector2(300, 302)
 	var content := _sheet_content()
 	var badge := Label.new()
 	badge.text = "  친구들과 사는 작은 낙원  "
@@ -107,7 +107,7 @@ func _show_welcome() -> void:
 	title_label = Label.new()
 	title_label.text = "너는 어떤 존재로\n이 섬에 올래?"
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.add_theme_font_size_override("font_size", 30)
+	title_label.add_theme_font_size_override("font_size", 27)
 	title_label.add_theme_color_override("font_color", INK)
 	content.add_child(title_label)
 	subtitle_label = Label.new()
@@ -128,8 +128,8 @@ func _show_creator() -> void:
 	_set_game_controls_visible(false)
 	_clear_sheet()
 	sheet.visible = true
-	sheet.position = Vector2(454, 50)
-	sheet.size = Vector2(374, 326)
+	sheet.position = Vector2(520, 50)
+	sheet.size = Vector2(308, 326)
 	var content := _sheet_content()
 	var heading := Label.new()
 	heading.text = "나만의 존재 조립하기"
@@ -158,11 +158,11 @@ func _show_creator() -> void:
 	content.add_child(_section_label("말랑한 색"))
 	palette_row = HBoxContainer.new()
 	palette_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	palette_row.add_theme_constant_override("separation", 11)
+	palette_row.add_theme_constant_override("separation", 7)
 	for index in AvatarConfig.PALETTES.size():
 		var swatch := Button.new()
 		swatch.text = "●"
-		swatch.custom_minimum_size = Vector2(48, 44)
+		swatch.custom_minimum_size = Vector2(40, 44)
 		_style_button(swatch, AvatarConfig.PALETTES[index], Color.WHITE, 21)
 		swatch.pressed.connect(_select_palette.bind(index))
 		palette_row.add_child(swatch)
@@ -218,8 +218,8 @@ func _show_theme_picker() -> void:
 	_set_game_controls_visible(false)
 	_clear_sheet()
 	sheet.visible = true
-	sheet.position = Vector2(454, 48)
-	sheet.size = Vector2(374, 328)
+	sheet.position = Vector2(520, 48)
+	sheet.size = Vector2(308, 328)
 	var content := _sheet_content()
 	var heading := Label.new()
 	heading.text = "빈 방의 첫 분위기를 골라봐"
