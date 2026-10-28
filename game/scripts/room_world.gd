@@ -36,7 +36,7 @@ func _ready() -> void:
 	avatar = AvatarDoll.new()
 	avatar.name = "RoomAvatar"
 	avatar.scale = Vector3.ONE * 0.82
-	avatar.position = Vector3(2.0, 0.02, 1.05)
+	avatar.position = Vector3(1.8, 0.02, 0.0)
 	avatar.rotation.y = -0.55
 	add_child(avatar)
 	set_active(false)
@@ -126,8 +126,8 @@ func _build_room() -> void:
 	add_child(sun)
 
 	_camera = Camera3D.new()
-	_camera.position = Vector3(6.2, 7.4, 8.4)
-	_camera.fov = 38.0
+	_camera.position = Vector3(5.5, 6.5, 7.2)
+	_camera.fov = 36.0
 	add_child(_camera)
 	_camera.look_at(Vector3(0, 0.9, 0))
 

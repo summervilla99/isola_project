@@ -47,8 +47,8 @@ func _build_ui() -> void:
 	add_child(overlay)
 
 	var top_bar := HBoxContainer.new()
-	top_bar.position = Vector2(22, 20)
-	top_bar.size = Vector2(346, 52)
+	top_bar.position = Vector2(22, 14)
+	top_bar.size = Vector2(800, 46)
 	top_bar.add_theme_constant_override("separation", 8)
 	overlay.add_child(top_bar)
 	var logo := Label.new()
@@ -66,13 +66,13 @@ func _build_ui() -> void:
 	top_bar.add_child(settings)
 
 	sheet = PanelContainer.new()
-	sheet.position = Vector2(16, 512)
-	sheet.size = Vector2(358, 316)
+	sheet.position = Vector2(478, 72)
+	sheet.size = Vector2(350, 302)
 	sheet.add_theme_stylebox_override("panel", _panel_style(CREAM, 28, 5, Color("#3d315c")))
 	overlay.add_child(sheet)
 
 	joystick = IsolaJoystick.new()
-	joystick.position = Vector2(20, 700)
+	joystick.position = Vector2(24, 260)
 	joystick.size = Vector2(112, 112)
 	joystick.visible = false
 	joystick.movement_requested.connect(world.set_mobile_input)
@@ -80,7 +80,7 @@ func _build_ui() -> void:
 
 	action_button = Button.new()
 	action_button.text = "집  ⌂"
-	action_button.position = Vector2(278, 716)
+	action_button.position = Vector2(726, 278)
 	action_button.size = Vector2(92, 82)
 	action_button.visible = false
 	_style_button(action_button, PINK, Color.WHITE, 17)
@@ -95,8 +95,8 @@ func _show_welcome() -> void:
 	_set_game_controls_visible(false)
 	_clear_sheet()
 	sheet.visible = true
-	sheet.position = Vector2(16, 512)
-	sheet.size = Vector2(358, 316)
+	sheet.position = Vector2(478, 72)
+	sheet.size = Vector2(350, 302)
 	var content := _sheet_content()
 	var badge := Label.new()
 	badge.text = "  친구들과 사는 작은 낙원  "
@@ -128,8 +128,8 @@ func _show_creator() -> void:
 	_set_game_controls_visible(false)
 	_clear_sheet()
 	sheet.visible = true
-	sheet.position.y = 438
-	sheet.size.y = 390
+	sheet.position = Vector2(454, 50)
+	sheet.size = Vector2(374, 326)
 	var content := _sheet_content()
 	var heading := Label.new()
 	heading.text = "나만의 존재 조립하기"
@@ -193,8 +193,8 @@ func _enter_island() -> void:
 	_set_game_controls_visible(true)
 	_clear_sheet()
 	sheet.visible = true
-	sheet.position = Vector2(16, 86)
-	sheet.size = Vector2(358, 112)
+	sheet.position = Vector2(22, 72)
+	sheet.size = Vector2(370, 108)
 	var content := _sheet_content(12)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
@@ -218,8 +218,8 @@ func _show_theme_picker() -> void:
 	_set_game_controls_visible(false)
 	_clear_sheet()
 	sheet.visible = true
-	sheet.position = Vector2(16, 410)
-	sheet.size = Vector2(358, 418)
+	sheet.position = Vector2(454, 48)
+	sheet.size = Vector2(374, 328)
 	var content := _sheet_content()
 	var heading := Label.new()
 	heading.text = "빈 방의 첫 분위기를 골라봐"
@@ -239,7 +239,7 @@ func _show_theme_picker() -> void:
 		var button := Button.new()
 		button.text = "%s\n%s" % [theme_data[1], theme_data[2]]
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.custom_minimum_size.y = 72
+		button.custom_minimum_size.y = 58
 		_style_button(button, theme_data[3], Color.WHITE, 15)
 		button.pressed.connect(_open_room.bind(theme_data[0]))
 		content.add_child(button)
@@ -256,9 +256,9 @@ func _open_room(theme_id: StringName) -> void:
 func _show_room_toolbar() -> void:
 	_clear_sheet()
 	sheet.visible = true
-	sheet.position = Vector2(12, 630)
-	sheet.size = Vector2(366, 202)
-	var content := _sheet_content(14)
+	sheet.position = Vector2(146, 252)
+	sheet.size = Vector2(682, 124)
+	var content := _sheet_content(10)
 	var header := HBoxContainer.new()
 	var heading := Label.new()
 	heading.text = "%s · 첫 꾸미기" % RoomWorld.THEMES[room.current_theme].name
@@ -272,35 +272,30 @@ func _show_room_toolbar() -> void:
 	header.add_child(room_status)
 	content.add_child(header)
 
-	var catalog := HBoxContainer.new()
-	catalog.add_theme_constant_override("separation", 6)
+	var tools := HBoxContainer.new()
+	tools.add_theme_constant_override("separation", 6)
 	for item in [[&"sofa", "소파"], [&"shelf", "책장"], [&"plant", "화분"]]:
 		var button := Button.new()
 		button.text = "+ %s" % item[1]
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size.y = 48
+		button.custom_minimum_size = Vector2(76, 48)
 		_style_button(button, Color("#eadffc"), INK, 14)
 		button.pressed.connect(_add_room_item.bind(item[0]))
-		catalog.add_child(button)
-	content.add_child(catalog)
-
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override("separation", 6)
+		tools.add_child(button)
 	for action in [["↻ 회전", _rotate_room_item, Color("#ffd55c")], ["− 빼기", _remove_room_item, Color("#ffb1c9")]]:
 		var button := Button.new()
 		button.text = action[0]
-		button.custom_minimum_size = Vector2(82, 46)
+		button.custom_minimum_size = Vector2(80, 48)
 		_style_button(button, action[2], INK, 13)
 		button.pressed.connect(action[1])
-		actions.add_child(button)
+		tools.add_child(button)
 	var save := Button.new()
 	save.text = "초안 저장  ✓"
 	save.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	save.custom_minimum_size.y = 46
+	save.custom_minimum_size.y = 48
 	_style_button(save, PINK, Color.WHITE, 13)
 	save.pressed.connect(_save_room)
-	actions.add_child(save)
-	content.add_child(actions)
+	tools.add_child(save)
+	content.add_child(tools)
 
 func _add_room_item(kind: StringName) -> void:
 	room.add_furniture(kind)
