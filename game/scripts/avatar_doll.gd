@@ -9,6 +9,7 @@ var _right_arm: MeshInstance3D
 var _left_leg: MeshInstance3D
 var _right_leg: MeshInstance3D
 var _body_root: Node3D
+var _hero_sprite: Sprite3D
 
 func _ready() -> void:
 	rebuild()
@@ -24,6 +25,21 @@ func rebuild() -> void:
 	_body_root = Node3D.new()
 	_body_root.name = "DollBody"
 	add_child(_body_root)
+	_hero_sprite = null
+	if config.species == &"capybara":
+		var hero_texture := load("res://assets/capybara_hero.png") as Texture2D
+		if hero_texture:
+			_hero_sprite = Sprite3D.new()
+			_hero_sprite.name = "HeroSprite"
+			_hero_sprite.texture = hero_texture
+			_hero_sprite.pixel_size = 0.00205
+			_hero_sprite.position = Vector3(0, 1.38, 0)
+			_hero_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			_hero_sprite.shaded = false
+			_hero_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+			_hero_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			_body_root.add_child(_hero_sprite)
+			return
 
 	var body_material := _material(config.body_color, 0.72)
 	var accent_material := _material(config.accent_color, 0.66)
@@ -64,6 +80,10 @@ func _process(delta: float) -> void:
 	if not is_instance_valid(_body_root):
 		return
 	_body_root.position.y = sin(_time * (7.0 if walking else 2.2)) * (0.035 if walking else 0.018)
+	if is_instance_valid(_hero_sprite):
+		_hero_sprite.position.x = sin(_time * (8.0 if walking else 1.8)) * (0.025 if walking else 0.008)
+		_hero_sprite.scale.x = 1.0 + (0.018 if walking else 0.0) * sin(_time * 8.0)
+		return
 	var swing := sin(_time * 8.0) * 0.48 if walking else sin(_time * 1.8) * 0.04
 	if is_instance_valid(_left_arm):
 		_left_arm.rotation.x = swing

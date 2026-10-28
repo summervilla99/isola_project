@@ -12,5 +12,9 @@ func _init() -> void:
 	var serialized := config.to_dictionary()
 	assert(serialized.species == "human")
 	assert(serialized.has("accessory"))
+	var capybara := AvatarDoll.new()
+	root.add_child(capybara)
+	await process_frame
+	assert(capybara.get_node_or_null("DollBody/HeroSprite") != null)
 	print("AvatarConfig tests passed")
 	quit(0)
