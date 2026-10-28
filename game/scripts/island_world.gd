@@ -5,6 +5,7 @@ var avatar: AvatarDoll
 var _camera: Camera3D
 var _play_mode := false
 var _camera_target := Vector3.ZERO
+var _mobile_input := Vector2.ZERO
 
 func _ready() -> void:
 	_build_environment()
@@ -19,11 +20,22 @@ func set_play_mode(value: bool) -> void:
 	_play_mode = value
 	avatar.walking = false
 
+func set_active(value: bool) -> void:
+	visible = value
+	process_mode = Node.PROCESS_MODE_INHERIT if value else Node.PROCESS_MODE_DISABLED
+	if is_instance_valid(_camera):
+		_camera.current = value
+
+func set_mobile_input(value: Vector2) -> void:
+	_mobile_input = value
+
 func _process(delta: float) -> void:
 	if not _play_mode:
 		avatar.rotation.y = sin(Time.get_ticks_msec() * 0.00035) * 0.18
 		return
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	if _mobile_input.length() > input.length():
+		input = _mobile_input
 	var direction := Vector3(input.x, 0, input.y)
 	avatar.walking = direction.length() > 0.05
 	if avatar.walking:

@@ -19,5 +19,13 @@ func run() -> void:
 	await process_frame
 	assert(main.current_screen == main.Screen.ISLAND)
 	assert(main.world._play_mode)
+	main._show_theme_picker()
+	await process_frame
+	assert(main.current_screen == main.Screen.THEME)
+	main._open_room(&"greenhouse")
+	await process_frame
+	assert(main.current_screen == main.Screen.ROOM)
+	assert(main.room.current_theme == &"greenhouse")
+	assert(main.room.visible)
 	print("Main onboarding flow tests passed")
 	quit(0)

@@ -1,6 +1,6 @@
 extends Node3D
 
-enum Screen { WELCOME, CREATOR, ISLAND }
+enum Screen { WELCOME, CREATOR, ISLAND, THEME, ROOM }
 
 const PINK := Color("#ff5b9d")
 const PURPLE := Color("#6f59ff")
@@ -8,6 +8,7 @@ const INK := Color("#30264b")
 const CREAM := Color("#fff7df")
 
 var world: IslandWorld
+var room: RoomWorld
 var config := AvatarConfig.new()
 var overlay: Control
 var sheet: PanelContainer
@@ -17,14 +18,28 @@ var primary_button: Button
 var current_screen := Screen.WELCOME
 var species_row: HBoxContainer
 var palette_row: HBoxContainer
+var joystick: IsolaJoystick
+var action_button: Button
+var room_status: Label
 
 func _ready() -> void:
 	seed(42)
 	world = IslandWorld.new()
 	world.name = "IslandWorld"
 	add_child(world)
+	room = RoomWorld.new()
+	room.name = "RoomWorld"
+	add_child(room)
 	_build_ui()
 	_show_welcome()
+	_apply_preview_argument()
+
+func _apply_preview_argument() -> void:
+	for argument in OS.get_cmdline_user_args():
+		if argument == "--preview-theme":
+			_show_theme_picker()
+		elif argument.begins_with("--preview-room="):
+			_open_room(StringName(argument.get_slice("=", 1)))
 
 func _build_ui() -> void:
 	overlay = Control.new()
@@ -56,10 +71,32 @@ func _build_ui() -> void:
 	sheet.add_theme_stylebox_override("panel", _panel_style(CREAM, 28, 5, Color("#3d315c")))
 	overlay.add_child(sheet)
 
+	joystick = IsolaJoystick.new()
+	joystick.position = Vector2(20, 700)
+	joystick.size = Vector2(112, 112)
+	joystick.visible = false
+	joystick.movement_requested.connect(world.set_mobile_input)
+	overlay.add_child(joystick)
+
+	action_button = Button.new()
+	action_button.text = "집  ⌂"
+	action_button.position = Vector2(278, 716)
+	action_button.size = Vector2(92, 82)
+	action_button.visible = false
+	_style_button(action_button, PINK, Color.WHITE, 17)
+	action_button.pressed.connect(_show_theme_picker)
+	overlay.add_child(action_button)
+
 func _show_welcome() -> void:
 	current_screen = Screen.WELCOME
+	world.set_active(true)
 	world.set_play_mode(false)
+	room.set_active(false)
+	_set_game_controls_visible(false)
 	_clear_sheet()
+	sheet.visible = true
+	sheet.position = Vector2(16, 512)
+	sheet.size = Vector2(358, 316)
 	var content := _sheet_content()
 	var badge := Label.new()
 	badge.text = "  친구들과 사는 작은 낙원  "
@@ -88,7 +125,9 @@ func _show_welcome() -> void:
 
 func _show_creator() -> void:
 	current_screen = Screen.CREATOR
+	_set_game_controls_visible(false)
 	_clear_sheet()
+	sheet.visible = true
 	sheet.position.y = 438
 	sheet.size.y = 390
 	var content := _sheet_content()
@@ -148,38 +187,157 @@ func _show_creator() -> void:
 
 func _enter_island() -> void:
 	current_screen = Screen.ISLAND
+	world.set_active(true)
 	world.set_play_mode(true)
+	room.set_active(false)
+	_set_game_controls_visible(true)
 	_clear_sheet()
-	sheet.position = Vector2(16, 710)
-	sheet.size = Vector2(358, 118)
+	sheet.visible = true
+	sheet.position = Vector2(16, 86)
+	sheet.size = Vector2(358, 112)
 	var content := _sheet_content(12)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	var message := Label.new()
-	message.text = "ISOLA에 도착했어요!\nWASD로 섬을 산책해봐요."
+	message.text = "ISOLA에 도착했어요!\n왼쪽 조이스틱으로 산책해봐요."
 	message.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	message.add_theme_font_size_override("font_size", 15)
 	message.add_theme_color_override("font_color", INK)
 	row.add_child(message)
-	var wave := Button.new()
-	wave.text = "안녕! ♡"
-	wave.custom_minimum_size = Vector2(92, 66)
-	_style_button(wave, PINK, Color.WHITE, 14)
-	row.add_child(wave)
+	var home := Button.new()
+	home.text = "첫 집\n꾸미기"
+	home.custom_minimum_size = Vector2(92, 66)
+	_style_button(home, PINK, Color.WHITE, 14)
+	home.pressed.connect(_show_theme_picker)
+	row.add_child(home)
 	content.add_child(row)
+
+func _show_theme_picker() -> void:
+	current_screen = Screen.THEME
+	world.set_play_mode(false)
+	_set_game_controls_visible(false)
+	_clear_sheet()
+	sheet.visible = true
+	sheet.position = Vector2(16, 410)
+	sheet.size = Vector2(358, 418)
+	var content := _sheet_content()
+	var heading := Label.new()
+	heading.text = "빈 방의 첫 분위기를 골라봐"
+	heading.add_theme_font_size_override("font_size", 23)
+	heading.add_theme_color_override("font_color", INK)
+	content.add_child(heading)
+	var description := Label.new()
+	description.text = "가구는 비어 있고, 바닥과 빛부터 달라져요.\n나중에 언제든 다시 바꿀 수 있어요."
+	description.add_theme_font_size_override("font_size", 13)
+	description.add_theme_color_override("font_color", Color("#766682"))
+	content.add_child(description)
+	for theme_data in [
+		[&"sunset", "☀  노을 오두막", "살구빛 벽 · 따뜻한 나무 바닥", Color("#ff8f74")],
+		[&"toy", "✦  컬러풀 장난감 방", "보라색 벽 · 노란 젤리 바닥", Color("#6f59ff")],
+		[&"greenhouse", "♧  식물 온실", "민트빛 벽 · 풀잎색 바닥", Color("#35b98f")]
+	]:
+		var button := Button.new()
+		button.text = "%s\n%s" % [theme_data[1], theme_data[2]]
+		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.custom_minimum_size.y = 72
+		_style_button(button, theme_data[3], Color.WHITE, 15)
+		button.pressed.connect(_open_room.bind(theme_data[0]))
+		content.add_child(button)
+
+func _open_room(theme_id: StringName) -> void:
+	current_screen = Screen.ROOM
+	world.set_active(false)
+	room.set_active(true)
+	room.apply_avatar_config(config)
+	room.apply_theme(theme_id)
+	_set_game_controls_visible(false)
+	_show_room_toolbar()
+
+func _show_room_toolbar() -> void:
+	_clear_sheet()
+	sheet.visible = true
+	sheet.position = Vector2(12, 630)
+	sheet.size = Vector2(366, 202)
+	var content := _sheet_content(14)
+	var header := HBoxContainer.new()
+	var heading := Label.new()
+	heading.text = "%s · 첫 꾸미기" % RoomWorld.THEMES[room.current_theme].name
+	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heading.add_theme_font_size_override("font_size", 17)
+	heading.add_theme_color_override("font_color", INK)
+	header.add_child(heading)
+	room_status = Label.new()
+	room_status.text = "%d/12" % room.furniture.size()
+	room_status.add_theme_color_override("font_color", PURPLE)
+	header.add_child(room_status)
+	content.add_child(header)
+
+	var catalog := HBoxContainer.new()
+	catalog.add_theme_constant_override("separation", 6)
+	for item in [[&"sofa", "소파"], [&"shelf", "책장"], [&"plant", "화분"]]:
+		var button := Button.new()
+		button.text = "+ %s" % item[1]
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.custom_minimum_size.y = 48
+		_style_button(button, Color("#eadffc"), INK, 14)
+		button.pressed.connect(_add_room_item.bind(item[0]))
+		catalog.add_child(button)
+	content.add_child(catalog)
+
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 6)
+	for action in [["↻ 회전", _rotate_room_item, Color("#ffd55c")], ["− 빼기", _remove_room_item, Color("#ffb1c9")]]:
+		var button := Button.new()
+		button.text = action[0]
+		button.custom_minimum_size = Vector2(82, 46)
+		_style_button(button, action[2], INK, 13)
+		button.pressed.connect(action[1])
+		actions.add_child(button)
+	var save := Button.new()
+	save.text = "초안 저장  ✓"
+	save.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	save.custom_minimum_size.y = 46
+	_style_button(save, PINK, Color.WHITE, 13)
+	save.pressed.connect(_save_room)
+	actions.add_child(save)
+	content.add_child(actions)
+
+func _add_room_item(kind: StringName) -> void:
+	room.add_furniture(kind)
+	_show_room_toolbar()
+
+func _rotate_room_item() -> void:
+	room.rotate_selected()
+
+func _remove_room_item() -> void:
+	room.remove_selected()
+	_show_room_toolbar()
+
+func _save_room() -> void:
+	var saved := room.save_draft()
+	room_status.text = "저장됨 ♡" if saved else "다시 시도"
+
+func _set_game_controls_visible(value: bool) -> void:
+	joystick.visible = value
+	action_button.visible = value
+	if not value:
+		world.set_mobile_input(Vector2.ZERO)
 
 func _select_species(value: StringName) -> void:
 	config.set_species(value)
 	world.avatar.apply_config(config)
+	room.apply_avatar_config(config)
 	_show_creator()
 
 func _select_palette(index: int) -> void:
 	config.set_palette(index)
 	world.avatar.apply_config(config)
+	room.apply_avatar_config(config)
 
 func _randomize_avatar() -> void:
 	config.randomize()
 	world.avatar.apply_config(config)
+	room.apply_avatar_config(config)
 	_show_creator()
 
 func _clear_sheet() -> void:
