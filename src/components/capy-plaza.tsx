@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,10 +14,6 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/store";
 import { startClubBeat } from "@/lib/club-beat";
-
-const CapyVillage3D = dynamic(() => import("./capy-village-3d"), {
-  ssr: false,
-});
 
 type Position = { x: number; y: number };
 type Zone = "village" | "club";
@@ -128,10 +123,6 @@ export default function CapyPlaza({
   const [menuOpen, setMenuOpen] = useState(false);
   const [bubble, setBubble] = useState("");
   const [zone, setZone] = useState<Zone>("village");
-  const [webglSupported, setWebglSupported] = useState(false);
-  const [worldReady, setWorldReady] = useState(false);
-  const worldReadyRef = useRef(false);
-  const cameraYawRef = useRef(0);
   const [dancing, setDancing] = useState(false);
   const [musicOn, setMusicOn] = useState(false);
   const zoneRef = useRef<Zone>("village");
@@ -166,17 +157,6 @@ export default function CapyPlaza({
     return () => query.removeEventListener("change", sync);
   }, []);
 
-  useEffect(() => {
-    try {
-      const canvas = document.createElement("canvas");
-      setWebglSupported(
-        !!(canvas.getContext("webgl2") || canvas.getContext("webgl")),
-      );
-    } catch {
-      setWebglSupported(false);
-    }
-  }, []);
-
   const walkTo = useCallback((point: Position) => {
     destination.current = walkablePoint(point, zoneRef.current);
     setWalking(true);
@@ -190,9 +170,6 @@ export default function CapyPlaza({
       }
       zoneRef.current = next;
       setZone(next);
-      setWorldReady(false);
-      worldReadyRef.current = false;
-      cameraYawRef.current = 0;
       const start = next === "club" ? CLUB_START : START;
       player.current = start;
       destination.current = start;
@@ -236,16 +213,10 @@ export default function CapyPlaza({
         Number(keys.has("ArrowUp") || keys.has("w")) +
         (padDirection.current?.y ?? 0);
       if (dx || dy) {
-        const yaw =
-          zoneRef.current === "village" && worldReadyRef.current
-            ? cameraYawRef.current
-            : 0;
-        const worldDx = dx * Math.cos(yaw) + dy * Math.sin(yaw);
-        const worldDy = -dx * Math.sin(yaw) + dy * Math.cos(yaw);
         destination.current = walkablePoint(
           {
-            x: player.current.x + worldDx * dt * 24,
-            y: player.current.y + worldDy * dt * 24,
+            x: player.current.x + dx * dt * 24,
+            y: player.current.y + dy * dt * 24,
           },
           zoneRef.current,
         );
@@ -579,12 +550,9 @@ export default function CapyPlaza({
 
   return (
     <section
-      className={`capy-plaza ${guest ? "is-guest" : ""} is-${zone} ${zone === "village" && worldReady ? "has-world-3d" : ""}`}
+      className={`capy-plaza ${guest ? "is-guest" : ""} is-${zone}`}
       aria-label={zone === "club" ? "카피바라 클럽" : "카피바라 마을 광장"}
     >
-      {zone === "village" && (
-        <div className="capy-sky-backdrop" aria-hidden="true" />
-      )}
       <div
         ref={map}
         className="capy-map"
@@ -597,9 +565,6 @@ export default function CapyPlaza({
         <div className="capy-atmosphere" aria-hidden="true" />
         {zone === "village" ? (
           <>
-            <div className="capy-club-sign" aria-hidden="true">
-              CAPY CLUB
-            </div>
             <button
               className="capy-club-entrance"
               aria-label="카피바라 클럽 입장"
@@ -695,44 +660,6 @@ export default function CapyPlaza({
           </div>
         ))}
       </div>
-
-      {zone === "village" && webglSupported && (
-        <CapyVillage3D
-          guest={guest}
-          player={
-            guest
-              ? undefined
-              : {
-                  id: "me",
-                  name: "나",
-                  ...position,
-                  facing,
-                  walking,
-                  dancing,
-                  look: playerLook,
-                  bubble,
-                }
-          }
-          neighbors={neighbors.map((neighbor) => ({
-            ...neighbor,
-            look: knownLooks[neighbor.id],
-          }))}
-          frame={walkFrame}
-          reducedMotion={reducedMotion}
-          onMoveTo={(next) => {
-            if (guest) onExplore?.();
-            else walkTo(next);
-          }}
-          onEnterClub={() => changeZone("club")}
-          onCameraYaw={(yaw) => {
-            cameraYawRef.current = yaw;
-          }}
-          onReady={() => {
-            worldReadyRef.current = true;
-            setWorldReady(true);
-          }}
-        />
-      )}
 
       <header className="capy-hud-top">
         <div className="capy-brand">
@@ -946,9 +873,7 @@ export default function CapyPlaza({
             <span>✿</span>{" "}
             {zone === "club"
               ? "HOUSE BEAT · 120 BPM"
-              : worldReady
-                ? "바닥 클릭: 걷기 · 드래그: 시점 회전 · 스크롤: 확대"
-                : "클럽 입구에서 모카가 기다려요"}
+              : "바닥 클릭 또는 방향키로 걷기 · 클럽 입구에서 모카가 기다려요"}
           </div>
         </>
       )}
