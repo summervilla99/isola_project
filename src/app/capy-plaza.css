@@ -233,7 +233,11 @@
   overflow: hidden;
   background:
     linear-gradient(180deg, #49394d18, #49394d08 68%, #3528362e),
-    url("/capy-world/village-v3.webp") center / cover no-repeat,
+    image-set(
+        url("/capy-world/village-v3.avif") type("image/avif"),
+        url("/capy-world/village-v3.webp") type("image/webp")
+      )
+      center / cover no-repeat,
     #bc7c84;
 }
 
@@ -354,7 +358,11 @@
   top: 50%;
   transform: translate(-50%, -50%);
   transition: transform 160ms ease-out;
-  background: url("/capy-world/village-v3.webp") center / 100% 100% no-repeat;
+  background: image-set(
+      url("/capy-world/village-v3.avif") type("image/avif"),
+      url("/capy-world/village-v3.webp") type("image/webp")
+    )
+    center / 100% 100% no-repeat;
   box-shadow: inset 0 0 120px #38283a24;
   cursor: crosshair;
   touch-action: manipulation;

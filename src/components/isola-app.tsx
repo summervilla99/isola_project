@@ -1,7 +1,7 @@
 "use client";
-import dynamic from "next/dynamic";
 import CapyPlaza from "./capy-plaza";
 import { useEffect, useMemo, useRef, useState, FormEvent } from "react";
+import { preload } from "react-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -51,14 +51,7 @@ import {
   validateLayout,
 } from "@/domain/world";
 import { loadDemo, loadWorld, mutate, supabase } from "@/lib/store";
-const Scene = dynamic(() => import("./world-scene"), {
-  ssr: false,
-  loading: () => (
-    <div className="scene-loading">
-      <Loader2 className="spin" /> 작은 섬을 준비하고 있어요…
-    </div>
-  ),
-});
+type SceneComponent = typeof import("./world-scene").default;
 type View =
   "island" | "archive" | "people" | "notifications" | "settings" | "space";
 function Modal({
@@ -119,10 +112,14 @@ function AvatarDot({
     </span>
   );
 }
-export default function IsolaApp() {
-  const [world, setWorld] = useState<World | null>(null),
-    [demo, setDemo] = useState(false),
-    [boot, setBoot] = useState(true),
+export default function IsolaApp({ initialWorld }: { initialWorld: World }) {
+  preload("/capy-world/village-v3.avif", {
+    as: "image",
+    type: "image/avif",
+    fetchPriority: "high",
+  });
+  const [world, setWorld] = useState<World | null>(initialWorld),
+    [demo, setDemo] = useState(true),
     [view, setView] = useState<View>("island"),
     [spaceId, setSpaceId] = useState<string>(),
     [toast, setToast] = useState(""),
@@ -146,7 +143,8 @@ export default function IsolaApp() {
     [quality, setQuality] = useState("normal"),
     [invite, setInvite] = useState(""),
     [pendingToken, setPendingToken] = useState(""),
-    [offline, setOffline] = useState(false);
+    [offline, setOffline] = useState(false),
+    [Scene, setScene] = useState<SceneComponent | null>(null);
   const me = world?.profiles.find((p) => p.id === world.me),
     space = world?.spaces.find((s) => s.id === spaceId),
     owner = world?.profiles.find((p) => p.id === space?.owner),
@@ -183,6 +181,16 @@ export default function IsolaApp() {
     return () => clearTimeout(t);
   }, [toast]);
   useEffect(() => {
+    if (view !== "space" || Scene) return;
+    let active = true;
+    void import("./world-scene").then((module) => {
+      if (active) setScene(() => module.default);
+    });
+    return () => {
+      active = false;
+    };
+  }, [view, Scene]);
+  useEffect(() => {
     let active = true;
     const token =
       new URLSearchParams(location.search).get("invite") ??
@@ -203,9 +211,7 @@ export default function IsolaApp() {
       localStorage.setItem("isola-demo-active", "true");
       setDemo(true);
       setWorld(sample);
-      setBoot(false);
     } catch {
-      setBoot(false);
       tell("브라우저 저장 공간을 사용할 수 없어요. 저장 설정을 확인해 주세요.");
     }
     if (supabase) {
@@ -381,17 +387,6 @@ export default function IsolaApp() {
       tell((e as Error).message);
     }
   };
-  if (boot)
-    return (
-      <main className="capy-world-loading" aria-label="노을 마을을 여는 중">
-        <div className="capy-world-loading-club" aria-hidden="true" />
-        <div className="capy-world-loading-mark">
-          <span>✿</span>
-          <strong>카피바라 스토리</strong>
-          <small>노을 마을로 가는 중…</small>
-        </div>
-      </main>
-    );
   if (!world)
     return (
       <main className="boot">
@@ -839,41 +834,50 @@ export default function IsolaApp() {
                             </div>
                           ) : (
                             <div className="canvas-wrap">
-                              <Scene
-                                key={spaceId ?? "island"}
-                                world={world}
-                                spaceId={view === "space" ? spaceId : undefined}
-                                placements={
-                                  editing
-                                    ? draft
-                                    : space?.published.filter(
-                                        (p) =>
-                                          !p.itemId ||
-                                          visibleItems.some(
-                                            (i) => i.id === p.itemId,
-                                          ),
-                                      )
-                                }
-                                onVisit={visit}
-                                onSelect={(id) => {
-                                  if (editing) setSelected(id);
-                                  else {
-                                    const p = space?.published.find(
-                                      (p) => p.id === id,
-                                    );
-                                    if (p?.itemId) setDetail(p.itemId);
+                              {Scene ? (
+                                <Scene
+                                  key={spaceId ?? "island"}
+                                  world={world}
+                                  spaceId={
+                                    view === "space" ? spaceId : undefined
                                   }
-                                }}
-                                onCell={add}
-                                editing={editing}
-                                quality={quality}
-                                onError={() => {
-                                  setListMode(true);
-                                  tell(
-                                    "3D 대신 목록으로 편하게 둘러볼 수 있어요.",
-                                  );
-                                }}
-                              />
+                                  placements={
+                                    editing
+                                      ? draft
+                                      : space?.published.filter(
+                                          (p) =>
+                                            !p.itemId ||
+                                            visibleItems.some(
+                                              (i) => i.id === p.itemId,
+                                            ),
+                                        )
+                                  }
+                                  onVisit={visit}
+                                  onSelect={(id) => {
+                                    if (editing) setSelected(id);
+                                    else {
+                                      const p = space?.published.find(
+                                        (p) => p.id === id,
+                                      );
+                                      if (p?.itemId) setDetail(p.itemId);
+                                    }
+                                  }}
+                                  onCell={add}
+                                  editing={editing}
+                                  quality={quality}
+                                  onError={() => {
+                                    setListMode(true);
+                                    tell(
+                                      "3D 대신 목록으로 편하게 둘러볼 수 있어요.",
+                                    );
+                                  }}
+                                />
+                              ) : (
+                                <div className="scene-loading">
+                                  <Loader2 className="spin" /> 작은 공간을
+                                  준비하고 있어요…
+                                </div>
+                              )}
                             </div>
                           )}
                           <div className="world-overlay bottom">
