@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/store";
 import { startClubBeat } from "@/lib/club-beat";
+import { doorScenarios, type DoorScenarioId } from "@/lib/door-scenarios";
 
 type Position = { x: number; y: number };
 type Zone = "village" | "club";
@@ -51,14 +52,7 @@ const START = { x: 51, y: 76 };
 const CLUB_START = { x: 50, y: 78 };
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
-const walkingFrames = [
-  "front-0",
-  "front-1",
-  "side-0",
-  "side-1",
-  "back-0",
-  "back-1",
-];
+const animalSprite = "/capy-world/animal/player-v1.webp";
 
 function walkablePoint(point: Position, zone: Zone): Position {
   const club = zone === "club";
@@ -74,16 +68,8 @@ function walkablePoint(point: Position, zone: Zone): Position {
   };
 }
 
-function walkingSprite(facing = 0, frame = 0) {
-  const side = Math.abs(Math.sin(facing)) > Math.abs(Math.cos(facing)) * 0.7;
-  if (side)
-    return {
-      src: `/capy-world/walk/side-${frame}.webp`,
-      flip: Math.sin(facing) < 0,
-    };
-  if (Math.cos(facing) < 0)
-    return { src: `/capy-world/walk/back-${frame}.webp`, flip: false };
-  return { src: `/capy-world/walk/front-${frame}.webp`, flip: false };
+function walkingSprite(facing = 0) {
+  return { src: animalSprite, flip: Math.sin(facing) < -0.12 };
 }
 
 export default function CapyPlaza({
@@ -92,8 +78,6 @@ export default function CapyPlaza({
   userName,
   demo = false,
   knownNames = {},
-  knownLooks = {},
-  playerLook,
   islandName,
   residentCount,
   guest = false,
@@ -116,20 +100,23 @@ export default function CapyPlaza({
   const [walking, setWalking] = useState(false);
   const [facing, setFacing] = useState(0);
   const facingRef = useRef(0);
-  const [walkFrame, setWalkFrame] = useState(0);
-  const lastWalkFrame = useRef(0);
   const [reducedMotion, setReducedMotion] = useState(false);
-  const reducedMotionRef = useRef(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [bubble, setBubble] = useState("");
   const [zone, setZone] = useState<Zone>("village");
+  const [guardOpen, setGuardOpen] = useState(false);
+  const [guardStep, setGuardStep] = useState<
+    "hello" | "challenge" | "charming" | "success"
+  >("hello");
+  const [doorScenario, setDoorScenario] = useState<DoorScenarioId>("charm");
+  const [charmPhase, setCharmPhase] = useState(0);
+  const [doorHint, setDoorHint] = useState("");
+  const doorVisits = useRef(0);
   const [dancing, setDancing] = useState(false);
   const [musicOn, setMusicOn] = useState(false);
   const zoneRef = useRef<Zone>("village");
   const audioContext = useRef<AudioContext | null>(null);
   const [neighbors, setNeighbors] = useState<Neighbor[]>([]);
-  const [remoteFrame, setRemoteFrame] = useState(0);
-  const anyNeighborWalking = neighbors.some((neighbor) => neighbor.walking);
   const remoteIdleTimers = useRef(new Map<string, number>());
   const [connected, setConnected] = useState(false);
   const channel = useRef<ReturnType<
@@ -140,16 +127,13 @@ export default function CapyPlaza({
   knownNamesRef.current = knownNames;
 
   useEffect(() => {
-    for (const frame of walkingFrames) {
-      const image = new Image();
-      image.src = `/capy-world/walk/${frame}.webp`;
-    }
+    const image = new Image();
+    image.src = animalSprite;
   }, []);
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
     const sync = () => {
-      reducedMotionRef.current = query.matches;
       setReducedMotion(query.matches);
     };
     sync();
@@ -177,6 +161,10 @@ export default function CapyPlaza({
       setNeighbors([]);
       setBubble("");
       setDancing(false);
+      setGuardOpen(false);
+      setGuardStep("hello");
+      setCharmPhase(0);
+      setDoorHint("");
       facingRef.current = 0;
       setFacing(0);
       moveSpeed.current = 0;
@@ -185,17 +173,76 @@ export default function CapyPlaza({
     [guest, onExplore],
   );
 
+  const requestClubEntry = useCallback(() => {
+    if (guest) {
+      onExplore?.();
+      return;
+    }
+    destination.current = { ...player.current };
+    moveSpeed.current = 0;
+    setWalking(false);
+    setDoorScenario(doorVisits.current % 2 ? "password" : "charm");
+    setGuardStep("hello");
+    setCharmPhase(0);
+    setDoorHint("");
+    setGuardOpen(true);
+    const club = new Image();
+    club.src = "/capy-world/club-v3.avif";
+    const dj = new Image();
+    dj.src = "/capy-world/animal/dj-v1.webp";
+  }, [guest, onExplore]);
+
   useEffect(() => {
     if (
       !guest &&
       zone === "village" &&
+      !guardOpen &&
       position.y <= 49 &&
       position.x >= 44 &&
       position.x <= 56
     ) {
-      changeZone("club");
+      requestClubEntry();
     }
-  }, [position, zone, guest, changeZone]);
+  }, [position, zone, guest, guardOpen, requestClubEntry]);
+
+  const finishCharm = () => {
+    setCharmPhase(4);
+    setDancing(false);
+    setGuardStep("success");
+  };
+
+  const charmGuard = () => {
+    setGuardStep("charming");
+    setCharmPhase(1);
+    setBubble("뀨우우… 🌺");
+    setDancing(true);
+  };
+
+  useEffect(() => {
+    if (guardStep !== "charming") return;
+    const timers = [
+      window.setTimeout(() => setCharmPhase(2), 1100),
+      window.setTimeout(() => setCharmPhase(3), 2500),
+      window.setTimeout(finishCharm, 4500),
+    ];
+    return () => timers.forEach(window.clearTimeout);
+  }, [guardStep]);
+
+  const enterApprovedClub = () => {
+    doorVisits.current += 1;
+    changeZone("club");
+  };
+
+  const choosePassword = (correct: boolean) => {
+    if (correct) {
+      setDoorHint("");
+      setBubble("꾸물꾸물 둠칫둠칫 ✨");
+      setGuardStep("success");
+      return;
+    }
+    setDoorHint("모카가 고개를 젓는다. 리듬은 맞는데… 뭔가 다르다.");
+    setBubble("…아닌가? 🥲");
+  };
 
   useEffect(() => {
     let frame = 0;
@@ -229,10 +276,6 @@ export default function CapyPlaza({
         if (Math.abs(angle - facingRef.current) > 0.08) {
           facingRef.current = angle;
           setFacing(angle);
-        }
-        if (!reducedMotionRef.current && now - lastWalkFrame.current > 150) {
-          lastWalkFrame.current = now;
-          setWalkFrame((frame) => 1 - frame);
         }
         const targetSpeed = Math.min(19, distance * 42);
         moveSpeed.current +=
@@ -281,15 +324,6 @@ export default function CapyPlaza({
       window.removeEventListener("keyup", up);
     };
   }, []);
-
-  useEffect(() => {
-    if (!anyNeighborWalking || reducedMotion) return;
-    const timer = window.setInterval(
-      () => setRemoteFrame((frame) => 1 - frame),
-      150,
-    );
-    return () => window.clearInterval(timer);
-  }, [anyNeighborWalking, reducedMotion]);
 
   useEffect(() => {
     if (!bubble) return;
@@ -570,36 +604,48 @@ export default function CapyPlaza({
               aria-label="카피바라 클럽 입장"
               onClick={(event) => {
                 event.stopPropagation();
-                changeZone("club");
+                requestClubEntry();
               }}
             >
               <span>
                 🪩 클럽 입장 <ArrowRight size={16} />
               </span>
             </button>
-            <div className="capy-guard" aria-label="클럽 입구의 카피바라 가드">
-              <img src="/capy-world/club-guard-v1.webp" alt="" />
+            <button
+              className="capy-guard"
+              aria-label="클럽 가드 모카에게 말 걸기"
+              onClick={(event) => {
+                event.stopPropagation();
+                requestClubEntry();
+              }}
+            >
+              <img src={animalSprite} alt="" />
+              <i aria-hidden="true">🕶️</i>
               <span>가드 모카</span>
-            </div>
+            </button>
             <div className="capy-neighbor capy-neighbor-one" aria-hidden="true">
-              <img src="/capy-world/capy-neighbor-v1.webp" alt="" />
+              <img src={animalSprite} alt="" />
               <span>라일락</span>
             </div>
           </>
         ) : (
           <>
+            <div className={`capy-dj ${musicOn ? "is-live" : ""}`}>
+              <img src="/capy-world/animal/dj-v1.webp" alt="" />
+              <span>DJ 밤톨</span>
+            </div>
             <div
               className="capy-neighbor capy-club-dancer-one"
               aria-hidden="true"
             >
-              <img src="/capy-world/capy-neighbor-v1.webp" alt="" />
+              <img src={animalSprite} alt="" />
               <span>라일락</span>
             </div>
             <div
               className="capy-neighbor capy-club-dancer-two"
               aria-hidden="true"
             >
-              <img src="/capy-world/club-guard-v1.webp" alt="" />
+              <img src={animalSprite} alt="" />
               <span>모카</span>
             </div>
           </>
@@ -616,11 +662,7 @@ export default function CapyPlaza({
           >
             {bubble && <span className="capy-bubble">{bubble}</span>}
             <img
-              src={
-                playerLook === "bun"
-                  ? "/capy-world/capy-neighbor-v1.webp"
-                  : walkingSprite(facing, walking ? walkFrame : 0).src
-              }
+              src={walkingSprite(facing).src}
               style={{ scale: walkingSprite(facing).flip ? "-1 1" : undefined }}
               alt=""
               draggable={false}
@@ -631,7 +673,7 @@ export default function CapyPlaza({
         {neighbors.map((neighbor) => (
           <div
             key={neighbor.id}
-            className={`capy-player capy-remote ${neighbor.dancing ? "is-dancing" : ""}`}
+            className={`capy-player capy-remote ${neighbor.walking ? "is-walking" : ""} ${neighbor.dancing ? "is-dancing" : ""}`}
             style={{
               left: `${neighbor.x}%`,
               top: `${neighbor.y}%`,
@@ -642,14 +684,7 @@ export default function CapyPlaza({
               <span className="capy-bubble">{neighbor.bubble}</span>
             )}
             <img
-              src={
-                knownLooks[neighbor.id] === "bun"
-                  ? "/capy-world/capy-neighbor-v1.webp"
-                  : walkingSprite(
-                      neighbor.facing,
-                      neighbor.walking ? remoteFrame : 0,
-                    ).src
-              }
+              src={walkingSprite(neighbor.facing).src}
               style={{
                 scale: walkingSprite(neighbor.facing).flip ? "-1 1" : undefined,
               }}
@@ -660,6 +695,95 @@ export default function CapyPlaza({
           </div>
         ))}
       </div>
+
+      {zone === "village" && guardOpen && guardStep === "charming" && (
+        <div className={`capy-charm-cutscene is-phase-${charmPhase}`}>
+          <div className="capy-charm-hearts" aria-hidden="true">
+            <span>♥</span>
+            <span>✦</span>
+            <span>♥</span>
+            <span>✿</span>
+          </div>
+          <img src={animalSprite} alt="배를 붙이고 애교 부리는 카피바라" />
+          <div className="capy-charm-meter" aria-live="polite">
+            <span>귀여움 측정 중</span>
+            <div>
+              <i style={{ width: `${[0, 24, 52, 86, 100][charmPhase]}%` }} />
+            </div>
+            <strong>
+              {charmPhase < 2
+                ? "납작…"
+                : charmPhase < 3
+                  ? "꾸물꾸물…"
+                  : "귀여움 120%"}
+            </strong>
+          </div>
+          <p>모카 앞에서 온몸으로 최선을 다하는 중…</p>
+          <button onClick={finishCharm}>연출 건너뛰기</button>
+        </div>
+      )}
+
+      {zone === "village" && guardOpen && guardStep !== "charming" && (
+        <div className="capy-guard-dialogue" role="dialog" aria-modal="true">
+          <img
+            src="/capy-world/animal/guard-card-v1.webp"
+            alt="선글라스를 쓴 클럽 가드 모카"
+          />
+          <div>
+            <small>CAPY CLUB · {doorScenarios[doorScenario].label}</small>
+            <strong>가드 모카</strong>
+            <p>
+              {guardStep === "hello"
+                ? doorScenarios[doorScenario].intro
+                : guardStep === "challenge"
+                  ? doorScenarios[doorScenario].challenge
+                  : doorScenarios[doorScenario].success}
+            </p>
+            {doorHint && <em className="capy-door-hint">{doorHint}</em>}
+            <div className="capy-guard-dialogue-actions">
+              {guardStep === "hello" && (
+                <button onClick={() => setGuardStep("challenge")}>
+                  모카에게 말 걸기
+                </button>
+              )}
+              {guardStep === "challenge" && doorScenario === "charm" && (
+                <button className="is-charm" onClick={charmGuard}>
+                  🌺 배를 바닥에 붙이고 애교 부리기
+                </button>
+              )}
+              {guardStep === "challenge" &&
+                doorScenario === "password" &&
+                doorScenarios.password.choices?.map((choice) => (
+                  <button
+                    key={choice.label}
+                    className="is-password"
+                    onClick={() => choosePassword(choice.correct)}
+                  >
+                    {choice.label}
+                  </button>
+                ))}
+              {guardStep === "success" && doorScenario === "charm" && (
+                <button className="is-quiet" onClick={charmGuard}>
+                  애교 한 번 더 보기
+                </button>
+              )}
+              {guardStep === "success" && (
+                <button className="is-enter" onClick={enterApprovedClub}>
+                  🪩 클럽 입장
+                </button>
+              )}
+              {guardStep !== "success" && (
+                <button
+                  className="is-quiet"
+                  onClick={() => setGuardOpen(false)}
+                >
+                  다음에 올게
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <header className="capy-hud-top">
         <div className="capy-brand">
@@ -705,7 +829,9 @@ export default function CapyPlaza({
           ) : (
             <>
               <button
-                onClick={() => changeZone(zone === "club" ? "village" : "club")}
+                onClick={() =>
+                  zone === "club" ? changeZone("village") : requestClubEntry()
+                }
               >
                 {zone === "club" ? (
                   <ArrowLeft size={18} />
