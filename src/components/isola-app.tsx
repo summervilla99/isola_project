@@ -486,7 +486,7 @@ export default function IsolaApp() {
   );
   return (
     <div
-      className={`app-shell ${view === "island" && world.island ? "capy-island" : ""}`}
+      className={`app-shell ${world.island ? (view === "island" ? "capy-island" : `capy-panel capy-panel-${view}`) : ""}`}
     >
       {view === "island" && world.island && (
         <CapyPlaza
@@ -600,6 +600,14 @@ export default function IsolaApp() {
           </aside>
           <div className="main-area">
             <header className="topbar">
+              {world.island && view !== "island" && (
+                <button
+                  className="capy-back-button"
+                  onClick={() => navigate("island")}
+                >
+                  <ArrowLeft size={17} /> 광장으로
+                </button>
+              )}
               <button
                 className="icon-btn mobile-menu"
                 aria-label="메뉴 열기"

@@ -78,7 +78,9 @@
   max-height: 92dvh;
   border: 3px solid #fff8e7;
   background: #fff9ea;
-  box-shadow: 0 8px 0 #a8657c, 0 26px 90px #4e365c8a;
+  box-shadow:
+    0 8px 0 #a8657c,
+    0 26px 90px #4e365c8a;
   color: #5d3c52;
 }
 
@@ -113,6 +115,96 @@
 .app-shell.capy-island > .sidebar,
 .app-shell.capy-island > .main-area {
   display: none;
+}
+
+.app-shell.capy-panel {
+  --green: #ed7393;
+  --ink: #5d3c52;
+  --muted: #8e7581;
+  --line: #efdaca;
+  display: block;
+  min-height: 100dvh;
+  background: url("/capy-world/plaza-v1.webp") center / cover fixed no-repeat;
+}
+
+.app-shell.capy-panel > .sidebar {
+  display: none;
+}
+
+.app-shell.capy-panel > .main-area {
+  position: relative;
+  z-index: 1;
+  width: min(800px, 64vw);
+  height: 100dvh;
+  overflow: auto;
+  margin: 0 0 0 auto;
+  border-left: 3px solid #fff5e1;
+  background: #fff8e8f2;
+  box-shadow: -18px 0 55px #52344d5c;
+  backdrop-filter: blur(12px);
+}
+
+.app-shell.capy-panel .topbar {
+  position: sticky;
+  z-index: 12;
+  top: 0;
+  padding: 0 24px;
+  background: #fff8e8ed;
+  border-bottom-color: #f1dac9;
+}
+
+.app-shell.capy-panel .workspace {
+  padding: 25px 26px 38px;
+}
+
+.app-shell.capy-panel .mobile-menu,
+.app-shell.capy-panel .breadcrumb > span,
+.app-shell.capy-panel .breadcrumb > svg {
+  display: none;
+}
+
+.app-shell.capy-panel .breadcrumb {
+  margin-right: auto;
+  font-size: 12px;
+}
+
+.app-shell.capy-panel .breadcrumb strong {
+  color: #7a5268;
+  font-weight: 800;
+}
+
+.capy-back-button {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 6px;
+  margin-right: 16px;
+  padding: 8px 13px;
+  border: 2px solid #fff7e1;
+  border-radius: 13px;
+  background: #ff789d;
+  box-shadow: 0 3px 0 #ac5776;
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.app-shell.capy-panel .world-card {
+  border: 3px solid #fff1d8;
+  box-shadow:
+    0 7px 0 #b88391,
+    0 20px 45px #754b6163;
+}
+
+.app-shell.capy-panel .page-heading h1 {
+  color: #623e53;
+  font-weight: 800;
+}
+
+.app-shell.capy-panel .demo-banner {
+  background: #fff0d6;
+  color: #76536a;
 }
 
 .capy-plaza {
@@ -528,6 +620,33 @@
 }
 
 @media (max-width: 700px) {
+  .app-shell.capy-panel {
+    padding-top: 110px;
+  }
+  .app-shell.capy-panel > .main-area {
+    width: 100%;
+    height: calc(100dvh - 110px);
+    margin-top: 0;
+    border-left: 0;
+    border-top: 3px solid #fff5e1;
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -12px 42px #52344d66;
+  }
+  .app-shell.capy-panel .topbar {
+    height: 62px;
+    padding: 0 15px;
+  }
+  .app-shell.capy-panel .workspace {
+    padding: 20px 16px 36px;
+  }
+  .app-shell.capy-panel .private-chip {
+    display: none;
+  }
+  .capy-back-button {
+    padding: 7px 9px;
+    min-height: 39px;
+    margin-right: 8px;
+  }
   .capy-hud-top {
     padding: max(13px, env(safe-area-inset-top)) 16px;
   }
@@ -614,6 +733,20 @@
     box-shadow: 0 4px 0 #a6637d;
     font-size: 22px;
     font-weight: 900;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .app-shell.capy-panel {
+    padding-top: 0;
+  }
+  .app-shell.capy-panel > .main-area {
+    width: min(640px, 76vw);
+    height: 100dvh;
+    margin-top: 0;
+    border-top: 0;
+    border-left: 3px solid #fff5e1;
+    border-radius: 0;
   }
 }
 
