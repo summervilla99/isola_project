@@ -375,6 +375,13 @@
   );
 }
 
+.capy-plaza.is-spring .capy-map {
+  background-image: url("/capy-world/hot-spring-v1.webp");
+  box-shadow:
+    inset 0 0 120px #2c24513b,
+    inset 0 -80px 100px #15496b29;
+}
+
 .capy-club-sign {
   position: absolute;
   z-index: 100;
@@ -446,7 +453,7 @@
 }
 
 .capy-guard img {
-  width: clamp(82px, 8vw, 132px);
+  width: clamp(118px, 10.5vw, 176px);
   filter: drop-shadow(0 10px 5px #67484c69);
 }
 
@@ -470,6 +477,91 @@
   font-weight: 900;
 }
 
+.capy-spring-secret {
+  position: absolute;
+  z-index: 72;
+  left: 84%;
+  top: 74%;
+  display: grid;
+  place-items: center;
+  width: clamp(72px, 7vw, 105px);
+  height: clamp(58px, 5.5vw, 86px);
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 0;
+  background: radial-gradient(ellipse at 50% 70%, #5d6448cc, transparent 68%);
+  color: #fff4d4;
+  cursor: pointer;
+}
+
+.capy-spring-secret::before {
+  content: "";
+  position: absolute;
+  inset: 18% 7% 5%;
+  border-radius: 50% 45% 42% 54%;
+  background: linear-gradient(145deg, #8d8b70, #4d5848 68%);
+  box-shadow:
+    inset 7px 8px 14px #d1c69a52,
+    0 10px 13px #233a3159;
+}
+
+.capy-spring-secret i {
+  position: relative;
+  z-index: 2;
+  margin-top: -22px;
+  color: #fff5db00;
+  font-size: 20px;
+  font-style: normal;
+  text-shadow: 0 0 12px #fff4d400;
+  transition:
+    color 220ms ease,
+    text-shadow 220ms ease;
+}
+
+.capy-spring-secret:hover i,
+.capy-spring-secret.is-clue-1 i,
+.capy-spring-secret.is-clue-2 i,
+.capy-spring-secret.is-discovered i {
+  color: #fff0d0d9;
+  text-shadow: 0 0 15px #fff0c9;
+  animation: capy-steam-rise 1.8s ease-in-out infinite;
+}
+
+.capy-spring-secret span {
+  position: absolute;
+  z-index: 3;
+  top: 84%;
+  width: max-content;
+  max-width: 170px;
+  padding: 4px 8px;
+  border: 1px solid #fff1d9bd;
+  border-radius: 20px;
+  background: #3f3540d9;
+  color: #fff7e8;
+  font-size: 9px;
+  font-weight: 900;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.capy-spring-secret:hover span,
+.capy-spring-secret.is-clue-1 span,
+.capy-spring-secret.is-clue-2 span,
+.capy-spring-secret.is-discovered span {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.capy-spring-secret.is-discovered::before {
+  background: linear-gradient(145deg, #a09b78, #536951 66%);
+  box-shadow:
+    inset 7px 8px 14px #fff1b35c,
+    0 0 24px #ffd4856e;
+}
+
 .capy-club-dancer-one {
   left: 38%;
   top: 70%;
@@ -487,6 +579,60 @@
 }
 .capy-player.is-dancing img {
   animation: capy-dance 0.65s ease-in-out infinite alternate;
+}
+
+.capy-spring-friend-one {
+  left: 34%;
+  top: 67%;
+}
+
+.capy-spring-friend-two {
+  left: 66%;
+  top: 69%;
+}
+
+.capy-plaza.is-spring .capy-neighbor img,
+.capy-plaza.is-spring .capy-player img {
+  clip-path: inset(0 0 23% 0 round 0 0 28% 28%);
+  filter: drop-shadow(0 6px 6px #265c6869);
+}
+
+.capy-plaza.is-spring .capy-neighbor,
+.capy-plaza.is-spring .capy-player {
+  animation: capy-hot-spring-float 3.4s ease-in-out infinite alternate;
+}
+
+.capy-spring-steam {
+  position: absolute;
+  z-index: 2;
+  inset: 45% 18% 20%;
+  pointer-events: none;
+}
+
+.capy-spring-steam i {
+  position: absolute;
+  bottom: 0;
+  width: 34px;
+  height: 110px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent, #fff8e58f, transparent);
+  filter: blur(8px);
+  opacity: 0;
+  animation: capy-steam-column 5s ease-in-out infinite;
+}
+
+.capy-spring-steam i:nth-child(1) {
+  left: 18%;
+}
+
+.capy-spring-steam i:nth-child(2) {
+  left: 52%;
+  animation-delay: -2s;
+}
+
+.capy-spring-steam i:nth-child(3) {
+  right: 12%;
+  animation-delay: -3.4s;
 }
 
 .capy-dj {
@@ -757,6 +903,18 @@
   color: #fff;
 }
 
+.capy-sound-button {
+  width: 43px;
+  height: 43px;
+  border-radius: 14px;
+  background: #6f5576;
+  box-shadow:
+    0 4px 0 #46354d,
+    0 8px 22px #52334e4d;
+  font-size: 12px;
+  font-weight: 950;
+}
+
 .capy-menu {
   position: absolute;
   z-index: 8;
@@ -873,6 +1031,29 @@
   pointer-events: none;
 }
 
+button.capy-neighbor {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.capy-player.is-local,
+.capy-player.capy-remote {
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.capy-neighbor:hover img,
+.capy-neighbor:focus-visible img,
+.capy-remote:hover img,
+.capy-remote:focus-visible img {
+  filter: drop-shadow(0 0 9px #fff2bd) drop-shadow(0 10px 6px #67484c69);
+}
+
 .capy-neighbor img,
 .capy-player img {
   display: block;
@@ -934,6 +1115,107 @@
 
 .capy-player.is-walking img {
   animation: capy-wriggle 0.42s ease-in-out infinite alternate;
+}
+
+.capy-player.is-puffing img {
+  animation: capy-puff 0.9s ease-in-out infinite alternate;
+}
+
+.capy-player.is-idle-1 img {
+  animation: capy-ear-twitch 2.4s ease-in-out infinite;
+}
+
+.capy-player.is-idle-2 img,
+.capy-player.is-idle-3 img {
+  animation: capy-breathe 3.2s ease-in-out infinite;
+}
+
+.capy-player.is-idle-4 img,
+.capy-player.is-social-lie img {
+  animation: capy-sleep-breathe 3.8s ease-in-out infinite;
+  filter: saturate(0.92) drop-shadow(0 7px 5px #67484c69);
+}
+
+.capy-player.is-social-nose img,
+.capy-player.is-social-chin img {
+  animation: capy-nose-boop 0.85s ease-in-out 3 alternate;
+}
+
+.capy-player.is-social-gaze img {
+  animation: capy-gaze 2.8s ease-in-out infinite;
+}
+
+.capy-orange {
+  position: absolute;
+  z-index: 7;
+  left: 72%;
+  top: 3%;
+  transform: translate(-50%, -76%);
+  font-size: clamp(16px, 1.7vw, 26px);
+  font-style: normal;
+  filter: drop-shadow(0 3px 3px #66412e70);
+  animation: capy-orange-balance 1.9s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.capy-butterfly {
+  position: absolute;
+  z-index: 7;
+  left: 28%;
+  top: -8%;
+  font-size: 20px;
+  font-style: normal;
+  animation: capy-butterfly-land 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.capy-sleep {
+  position: absolute;
+  z-index: 8;
+  left: 72%;
+  bottom: 88%;
+  color: #fff4dd;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-shadow: 0 2px 5px #503448;
+  animation: capy-sleep-text 2.2s ease-in-out infinite;
+}
+
+.capy-npc-bubble {
+  position: absolute;
+  z-index: 8;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  width: max-content;
+  max-width: 150px;
+  padding: 6px 9px;
+  transform: translateX(-50%);
+  border: 2px solid #fff7e5;
+  border-radius: 14px;
+  background: #fff0dbea;
+  box-shadow: 0 3px 0 #9b6478;
+  color: #684657;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.capy-chorus-sticker {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 8px);
+  left: 50%;
+  padding: 5px 9px;
+  transform: translateX(-50%) rotate(-2deg);
+  border: 2px solid #fff0bf;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #ef6f88, #9c4b85);
+  color: #fff8df;
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .capy-guard-dialogue {
@@ -1189,6 +1471,68 @@
   font-size: 11px;
 }
 
+.capy-social-menu {
+  position: absolute;
+  z-index: 24;
+  left: 50%;
+  bottom: 92px;
+  width: min(560px, calc(100vw - 36px));
+  padding: 15px 16px;
+  transform: translateX(-50%);
+  border: 1px solid #fff1d2b8;
+  border-radius: 22px;
+  background: #30212ddd;
+  box-shadow: 0 16px 55px #24152885;
+  color: #fff8e9;
+  backdrop-filter: blur(16px);
+}
+
+.capy-social-menu small {
+  color: #f3ac9c;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.capy-social-menu strong {
+  display: block;
+  margin: 4px 0 11px;
+  font-size: 16px;
+}
+
+.capy-social-menu > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.capy-social-menu button {
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 1px solid #ffe4c99c;
+  border-radius: 12px;
+  background: #5a3548;
+  color: #fff6e9;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.capy-social-menu button:hover,
+.capy-social-menu button:focus-visible {
+  transform: translateY(-2px);
+  background: #82415c;
+}
+
+.capy-social-menu button.is-chorus {
+  background: linear-gradient(135deg, #ee6e82, #9c4d8c);
+}
+
+.capy-social-menu button.is-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: #c8aaa9;
+}
+
 .capy-bubble {
   position: absolute;
   bottom: calc(100% + 5px);
@@ -1297,6 +1641,98 @@
   }
   100% {
     transform: translateY(0) rotate(2deg) scaleX(0.99) scaleY(1.01);
+  }
+}
+
+@keyframes capy-puff {
+  to {
+    transform: scale(1.18, 1.1) translateY(-3px);
+    filter: saturate(1.08) drop-shadow(0 13px 8px #67484c69);
+  }
+}
+
+@keyframes capy-ear-twitch {
+  0%,
+  82%,
+  100% {
+    transform: rotate(0);
+  }
+  88% {
+    transform: rotate(-2.5deg) scaleY(0.98);
+  }
+  93% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes capy-breathe {
+  to {
+    transform: scale(1.018, 0.975) translateY(2px);
+  }
+}
+
+@keyframes capy-sleep-breathe {
+  to {
+    transform: scale(1.035, 0.94) translateY(5px);
+  }
+}
+
+@keyframes capy-nose-boop {
+  to {
+    transform: translateX(8px) rotate(2deg);
+  }
+}
+
+@keyframes capy-gaze {
+  50% {
+    transform: translateY(-1px) rotate(-1deg);
+    filter: saturate(0.94) drop-shadow(0 10px 6px #67484c69);
+  }
+}
+
+@keyframes capy-orange-balance {
+  to {
+    transform: translate(-50%, -81%) rotate(6deg);
+  }
+}
+
+@keyframes capy-butterfly-land {
+  50% {
+    transform: translate(7px, -8px) rotate(12deg);
+  }
+}
+
+@keyframes capy-sleep-text {
+  50% {
+    opacity: 0.55;
+    transform: translate(7px, -8px) scale(1.08);
+  }
+}
+
+@keyframes capy-hot-spring-float {
+  to {
+    translate: 0 -4px;
+  }
+}
+
+@keyframes capy-steam-column {
+  0% {
+    opacity: 0;
+    transform: translateY(25px) scaleX(0.65);
+  }
+  35% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(12px, -75px) scaleX(1.25);
+  }
+}
+
+@keyframes capy-steam-rise {
+  50% {
+    transform: translateY(-7px);
+    opacity: 0.6;
   }
 }
 
@@ -1410,7 +1846,7 @@
   }
   .capy-neighbor img,
   .capy-player img {
-    width: clamp(126px, 34vw, 174px);
+    width: clamp(82px, 22vw, 118px);
   }
   .capy-place-label {
     top: 74px;
@@ -1516,7 +1952,7 @@
     top: 63%;
   }
   .capy-guard img {
-    width: clamp(78px, 22vw, 108px);
+    width: clamp(100px, 28vw, 138px);
   }
   .capy-guard-dialogue {
     grid-template-columns: 92px minmax(0, 1fr);
@@ -1559,6 +1995,29 @@
     bottom: 84px;
     width: calc(100vw - 28px);
     padding: 13px 14px;
+  }
+  .capy-social-menu {
+    bottom: 84px;
+    width: calc(100vw - 28px);
+    padding: 12px 13px;
+  }
+  .capy-social-menu strong {
+    font-size: 14px;
+  }
+  .capy-social-menu button {
+    min-height: 34px;
+    padding: 6px 9px;
+    font-size: 9px;
+  }
+  .capy-spring-secret {
+    left: 63%;
+    top: 72%;
+  }
+  .capy-spring-friend-one {
+    left: 43%;
+  }
+  .capy-spring-friend-two {
+    left: 58%;
   }
   .capy-club-dancer-one {
     z-index: 70;
@@ -1636,7 +2095,15 @@
   .capy-bartender img,
   .capy-player.is-charming img,
   .capy-player.is-bar-wriggling img,
-  .capy-map-charm > div i {
+  .capy-player.is-puffing img,
+  .capy-player[class*="is-idle-"] img,
+  .capy-player[class*="is-social-"] img,
+  .capy-map-charm > div i,
+  .capy-orange,
+  .capy-butterfly,
+  .capy-sleep,
+  .capy-spring-steam i,
+  .capy-spring-secret i {
     animation: none;
   }
 }

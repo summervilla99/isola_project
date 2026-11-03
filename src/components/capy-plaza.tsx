@@ -14,10 +14,13 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/store";
 import { startClubBeat } from "@/lib/club-beat";
+import { playCapySound, type CapySound } from "@/lib/capy-sounds";
 import { doorScenarios, type DoorScenarioId } from "@/lib/door-scenarios";
 
 type Position = { x: number; y: number };
-type Zone = "village" | "club";
+type Zone = "village" | "club" | "spring";
+type SocialAction =
+  "lie" | "nose" | "orange" | "chin" | "follow" | "gaze" | "chorus";
 type Neighbor = Position & {
   id: string;
   name: string;
@@ -26,6 +29,8 @@ type Neighbor = Position & {
   dancing?: boolean;
   facing?: number;
   walking?: boolean;
+  orange?: boolean;
+  idleState?: number;
 };
 type PlazaProps = {
   islandId?: string;
@@ -50,19 +55,21 @@ type PlazaProps = {
 
 const START = { x: 51, y: 76 };
 const CLUB_START = { x: 50, y: 78 };
+const SPRING_START = { x: 50, y: 83 };
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 const animalSprite = "/capy-world/animal/player-v1.webp";
 
 function walkablePoint(point: Position, zone: Zone): Position {
   const club = zone === "club";
-  const y = clamp(point.y, club ? 48 : 38, club ? 92 : 94);
+  const spring = zone === "spring";
+  const y = clamp(point.y, club ? 48 : spring ? 49 : 38, club ? 92 : 94);
   const narrowEntrance = club ? y < 58 : y < 53;
   return {
     x: clamp(
       point.x,
-      narrowEntrance ? (club ? 33 : 43) : club ? 14 : 8,
-      narrowEntrance ? (club ? 67 : 57) : club ? 86 : 92,
+      spring ? 17 : narrowEntrance ? (club ? 33 : 43) : club ? 14 : 8,
+      spring ? 83 : narrowEntrance ? (club ? 67 : 57) : club ? 86 : 92,
     ),
     y,
   };
@@ -119,6 +126,30 @@ export default function CapyPlaza({
     "hello",
   );
   const [drinkCount, setDrinkCount] = useState(0);
+  const [soundOn, setSoundOn] = useState(true);
+  const [idlePhase, setIdlePhase] = useState(0);
+  const lastActivity = useRef(0);
+  const pressTimer = useRef<number | null>(null);
+  const longPressed = useRef(false);
+  const clickSeries = useRef({ count: 0, timer: 0 });
+  const [puffing, setPuffing] = useState(false);
+  const [springClues, setSpringClues] = useState(0);
+  const [springDiscovered, setSpringDiscovered] = useState(false);
+  const [orangeTarget, setOrangeTarget] = useState<string | null>(null);
+  const [socialTarget, setSocialTarget] = useState<{
+    id: string;
+    name: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [socialPose, setSocialPose] = useState<SocialAction | null>(null);
+  const [npcBubble, setNpcBubble] = useState("");
+  const [npcBubbleFor, setNpcBubbleFor] = useState<string | null>(null);
+  const [chorusCount, setChorusCount] = useState(0);
+  const idlePhaseRef = useRef(idlePhase);
+  idlePhaseRef.current = idlePhase;
+  const orangeRef = useRef(false);
+  orangeRef.current = orangeTarget === "self" || zone === "spring";
   const zoneRef = useRef<Zone>("village");
   const audioContext = useRef<AudioContext | null>(null);
   const [neighbors, setNeighbors] = useState<Neighbor[]>([]);
@@ -146,6 +177,99 @@ export default function CapyPlaza({
     return () => query.removeEventListener("change", sync);
   }, []);
 
+  const markActive = useCallback(() => {
+    lastActivity.current = performance.now();
+    setIdlePhase(0);
+  }, []);
+
+  const sound = useCallback(
+    (kind: CapySound) => {
+      if (soundOn) playCapySound(kind);
+    },
+    [soundOn],
+  );
+
+  useEffect(() => {
+    lastActivity.current = performance.now();
+    const timer = window.setInterval(() => {
+      if (walking || guardOpen || bartenderOpen || menuOpen) return;
+      const idleFor = performance.now() - lastActivity.current;
+      setIdlePhase(
+        idleFor >= 40000
+          ? 4
+          : idleFor >= 25000
+            ? 3
+            : idleFor >= 15000
+              ? 2
+              : idleFor >= 8000
+                ? 1
+                : 0,
+      );
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [walking, guardOpen, bartenderOpen, menuOpen]);
+
+  useEffect(() => {
+    if (walking) markActive();
+  }, [walking, position, markActive]);
+
+  const startSelfPress = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    markActive();
+    longPressed.current = false;
+    pressTimer.current = window.setTimeout(() => {
+      longPressed.current = true;
+      setPuffing(true);
+      setBubble("뿌우우우…");
+      sound("ppu");
+    }, 650);
+  };
+
+  const endSelfPress = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    if (pressTimer.current) window.clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+    if (puffing) {
+      setPuffing(false);
+      setBubble("푸슉… 🌺");
+    }
+  };
+
+  const clickSelf = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    if (longPressed.current) {
+      longPressed.current = false;
+      return;
+    }
+    markActive();
+    clickSeries.current.count += 1;
+    if (clickSeries.current.timer)
+      window.clearTimeout(clickSeries.current.timer);
+    clickSeries.current.timer = window.setTimeout(() => {
+      const count = clickSeries.current.count;
+      clickSeries.current.count = 0;
+      let message = "뀨?";
+      if (count >= 4) {
+        message = "그만 눌러… 🫠";
+        setSocialPose("lie");
+        sound("ppu");
+        window.setTimeout(() => setSocialPose(null), 1600);
+      } else if (count >= 2) {
+        message = "뀨앙! ✨";
+        sound("kyuang");
+      } else {
+        sound("kyu");
+      }
+      setBubble(message);
+      if (connected)
+        void channel.current?.send({
+          type: "broadcast",
+          event: "gesture",
+          payload: { id: userId, zone, bubble: message, dancing: false },
+        });
+    }, 260);
+  };
+
   const walkTo = useCallback((point: Position) => {
     destination.current = walkablePoint(point, zoneRef.current);
     setWalking(true);
@@ -159,7 +283,8 @@ export default function CapyPlaza({
       }
       zoneRef.current = next;
       setZone(next);
-      const start = next === "club" ? CLUB_START : START;
+      const start =
+        next === "club" ? CLUB_START : next === "spring" ? SPRING_START : START;
       player.current = start;
       destination.current = start;
       setPosition(start);
@@ -172,12 +297,18 @@ export default function CapyPlaza({
       setDoorHint("");
       setBartenderOpen(false);
       setBarStep("hello");
+      setSocialTarget(null);
+      setSocialPose(null);
+      setNpcBubble("");
+      setNpcBubbleFor(null);
+      setOrangeTarget(next === "spring" ? "self" : null);
+      markActive();
       facingRef.current = 0;
       setFacing(0);
       moveSpeed.current = 0;
-      if (next === "village") setMusicOn(false);
+      if (next !== "club") setMusicOn(false);
     },
-    [guest, onExplore],
+    [guest, onExplore, markActive],
   );
 
   const requestClubEntry = useCallback(() => {
@@ -275,6 +406,89 @@ export default function CapyPlaza({
     }, 3200);
     return () => window.clearTimeout(timer);
   }, [barStep]);
+
+  const discoverSpring = () => {
+    markActive();
+    if (springDiscovered) {
+      changeZone("spring");
+      return;
+    }
+    const next = springClues + 1;
+    setSpringClues(next);
+    setBubble(
+      next === 1
+        ? "어디선가 따뜻한 김이 나…"
+        : next === 2
+          ? "바위 안쪽에서 물소리가 들려!"
+          : "비밀 온천을 찾았다! ♨️",
+    );
+    if (next >= 3) {
+      setSpringDiscovered(true);
+      const spring = new Image();
+      spring.src = "/capy-world/hot-spring-v1.webp";
+    }
+  };
+
+  const openSocial = (
+    event: React.MouseEvent<HTMLElement>,
+    target: { id: string; name: string; x: number; y: number },
+  ) => {
+    event.stopPropagation();
+    markActive();
+    setSocialTarget(target);
+    setNpcBubble("");
+    setNpcBubbleFor(null);
+  };
+
+  const performSocial = (action: SocialAction) => {
+    if (!socialTarget) return;
+    markActive();
+    destination.current = walkablePoint(
+      { x: socialTarget.x - 7, y: socialTarget.y + 1 },
+      zoneRef.current,
+    );
+    setWalking(true);
+    setSocialPose(action);
+    const messages: Record<SocialAction, [string, string]> = {
+      lie: ["말없이 옆에 누웠다…", "…편안해"],
+      nose: ["코 톡!", "뀨? 🌺"],
+      orange: ["귤 올려줄게 🍊", "가만히 있어볼게…"],
+      chin: ["등에 턱 좀 빌릴게", "무거운데 따뜻해…"],
+      follow: ["천천히 따라갈게", "같이 꾸물꾸물"],
+      gaze: ["……", "……"],
+      chorus: ["뀨앙—!", "뀨아앙—!"],
+    };
+    const [mine, theirs] = messages[action];
+    setBubble(mine);
+    setNpcBubble(theirs);
+    setNpcBubbleFor(socialTarget.id);
+    if (action === "orange") setOrangeTarget(socialTarget.id);
+    if (action === "chorus") {
+      setChorusCount((count) => count + 1);
+      sound(zone === "spring" ? "echo" : "chorus");
+    }
+    if (connected)
+      void channel.current?.send({
+        type: "broadcast",
+        event: "social",
+        payload: {
+          id: userId,
+          zone,
+          targetId: socialTarget.id,
+          action,
+          bubble: mine,
+        },
+      });
+    setSocialTarget(null);
+    window.setTimeout(
+      () => {
+        setSocialPose(null);
+        setNpcBubble("");
+        setNpcBubbleFor(null);
+      },
+      action === "follow" ? 6000 : 3600,
+    );
+  };
 
   useEffect(() => {
     let frame = 0;
@@ -418,11 +632,13 @@ export default function CapyPlaza({
             zone: peer.zone,
             x: clamp(
               peer.x,
-              peer.zone === "club" ? 22 : 27,
-              peer.zone === "club" ? 78 : 74,
+              peer.zone === "spring" ? 17 : peer.zone === "club" ? 14 : 8,
+              peer.zone === "spring" ? 83 : peer.zone === "club" ? 86 : 92,
             ),
-            y: clamp(peer.y, peer.zone === "club" ? 51 : 48, 88),
+            y: clamp(peer.y, peer.zone === "spring" ? 49 : 38, 92),
             facing: peer.facing ?? 0,
+            idleState: peer.idleState ?? 0,
+            orange: !!peer.orange,
           })),
       );
     };
@@ -446,10 +662,14 @@ export default function CapyPlaza({
                   ...item,
                   x: clamp(
                     peer.x,
-                    peer.zone === "club" ? 22 : 27,
-                    peer.zone === "club" ? 78 : 74,
+                    peer.zone === "spring" ? 17 : peer.zone === "club" ? 14 : 8,
+                    peer.zone === "spring"
+                      ? 83
+                      : peer.zone === "club"
+                        ? 86
+                        : 92,
                   ),
-                  y: clamp(peer.y, peer.zone === "club" ? 51 : 48, 88),
+                  y: clamp(peer.y, peer.zone === "spring" ? 49 : 38, 92),
                   facing: peer.facing ?? item.facing,
                   walking: true,
                 }
@@ -481,6 +701,11 @@ export default function CapyPlaza({
             "같이 쉬어갈래? ☕",
             "춤춰요! 🪩",
             "건배! 🍺",
+            "첨벙! 💦",
+            "뀨앙—…",
+            "뀨?",
+            "뀨앙! ✨",
+            "그만 눌러… 🫠",
           ].includes(peer.bubble ?? "")
         )
           return;
@@ -501,6 +726,42 @@ export default function CapyPlaza({
           2400,
         );
       })
+      .on("broadcast", { event: "social" }, ({ payload }) => {
+        const event = payload as {
+          id?: string;
+          zone?: Zone;
+          targetId?: string;
+          action?: SocialAction;
+          bubble?: string;
+        };
+        if (
+          !event.id ||
+          event.id === userId ||
+          event.zone !== zoneRef.current ||
+          !knownNamesRef.current[event.id]
+        )
+          return;
+        setNeighbors((current) =>
+          current.map((item) =>
+            item.id === event.id
+              ? {
+                  ...item,
+                  bubble: event.bubble,
+                  dancing: event.action === "chorus",
+                  orange: event.action === "orange" ? true : item.orange,
+                }
+              : item,
+          ),
+        );
+        if (event.targetId === userId) {
+          setBubble(
+            event.action === "orange"
+              ? "머리에 귤이 올라왔다 🍊"
+              : "친구가 천천히 다가왔다…",
+          );
+          if (event.action === "orange") setOrangeTarget("self");
+        }
+      })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
           subscribed = true;
@@ -511,6 +772,8 @@ export default function CapyPlaza({
             zone: zoneRef.current,
             ...player.current,
             facing: facingRef.current,
+            idleState: idlePhaseRef.current,
+            orange: orangeRef.current,
           });
         } else if (
           status === "CHANNEL_ERROR" ||
@@ -529,6 +792,8 @@ export default function CapyPlaza({
           zone: zoneRef.current,
           ...player.current,
           facing: facingRef.current,
+          idleState: idlePhaseRef.current,
+          orange: orangeRef.current,
         });
     }, 5000);
     return () => {
@@ -549,8 +814,10 @@ export default function CapyPlaza({
         zone,
         ...player.current,
         facing: facingRef.current,
+        idleState: idlePhase,
+        orange: orangeTarget === "self" || zone === "spring",
       });
-  }, [zone, connected, userId, userName]);
+  }, [zone, connected, userId, userName, idlePhase, orangeTarget]);
 
   useEffect(() => {
     if (
@@ -609,7 +876,8 @@ export default function CapyPlaza({
     padDirection.current = null;
   };
 
-  const cameraFocus = zone === "club" ? CLUB_START : START;
+  const cameraFocus =
+    zone === "club" ? CLUB_START : zone === "spring" ? SPRING_START : START;
   const cameraX = reducedMotion
     ? 0
     : clamp((cameraFocus.x - position.x) * 0.48, -15, 15);
@@ -620,7 +888,13 @@ export default function CapyPlaza({
   return (
     <section
       className={`capy-plaza ${guest ? "is-guest" : ""} is-${zone}`}
-      aria-label={zone === "club" ? "카피바라 클럽" : "카피바라 마을 광장"}
+      aria-label={
+        zone === "club"
+          ? "카피바라 클럽"
+          : zone === "spring"
+            ? "비밀 귤 온천"
+            : "카피바라 마을 광장"
+      }
     >
       <div
         ref={map}
@@ -654,16 +928,58 @@ export default function CapyPlaza({
                 requestClubEntry();
               }}
             >
-              <img src={animalSprite} alt="" />
-              <i aria-hidden="true">🕶️</i>
+              <img
+                src="/capy-world/animal/guard-v2.webp"
+                alt="산호 장식 창을 든 클럽 가드 모카"
+              />
               <span>가드 모카</span>
             </button>
-            <div className="capy-neighbor capy-neighbor-one" aria-hidden="true">
+            <button
+              className={`capy-neighbor capy-neighbor-one ${socialTarget?.id === "lilac" ? "is-selected" : ""} ${socialPose === "lie" ? "is-social-lying" : ""}`}
+              aria-label="라일락과 교감하기"
+              onClick={(event) =>
+                openSocial(event, {
+                  id: "lilac",
+                  name: "라일락",
+                  x: 29,
+                  y: 67,
+                })
+              }
+            >
+              {npcBubble && npcBubbleFor === "lilac" && (
+                <i className="capy-npc-bubble">{npcBubble}</i>
+              )}
+              {orangeTarget === "lilac" && (
+                <i className="capy-orange" aria-label="머리 위의 귤">
+                  🍊
+                </i>
+              )}
               <img src={animalSprite} alt="" />
               <span>라일락</span>
-            </div>
+            </button>
+            <button
+              className={`capy-spring-secret ${springDiscovered ? "is-discovered" : ""} is-clue-${springClues}`}
+              aria-label={
+                springDiscovered
+                  ? "비밀 귤 온천 들어가기"
+                  : "김이 나는 수상한 바위 살펴보기"
+              }
+              onClick={(event) => {
+                event.stopPropagation();
+                discoverSpring();
+              }}
+            >
+              <i aria-hidden="true">♨</i>
+              <span>
+                {springDiscovered
+                  ? "비밀 귤 온천 들어가기"
+                  : springClues
+                    ? "수상한 바위 다시 누르기"
+                    : ""}
+              </span>
+            </button>
           </>
-        ) : (
+        ) : zone === "club" ? (
           <>
             <div className={`capy-dj ${musicOn ? "is-live" : ""}`}>
               <img src="/capy-world/animal/dj-v1.webp" alt="" />
@@ -680,33 +996,124 @@ export default function CapyPlaza({
               <img src="/capy-world/animal/bartender-v1.webp" alt="" />
               <span>바텐더 코코</span>
             </button>
-            <div
+            <button
               className="capy-neighbor capy-club-dancer-one"
-              aria-hidden="true"
+              aria-label="라일락과 교감하기"
+              onClick={(event) =>
+                openSocial(event, {
+                  id: "lilac",
+                  name: "라일락",
+                  x: 38,
+                  y: 70,
+                })
+              }
             >
+              {npcBubble && npcBubbleFor === "lilac" && (
+                <i className="capy-npc-bubble">{npcBubble}</i>
+              )}
+              {orangeTarget === "lilac" && <i className="capy-orange">🍊</i>}
               <img src={animalSprite} alt="" />
               <span>라일락</span>
-            </div>
-            <div
+            </button>
+            <button
               className="capy-neighbor capy-club-dancer-two"
-              aria-hidden="true"
+              aria-label="모카와 교감하기"
+              onClick={(event) =>
+                openSocial(event, {
+                  id: "moka",
+                  name: "모카",
+                  x: 64,
+                  y: 70,
+                })
+              }
             >
+              {npcBubble && npcBubbleFor === "moka" && (
+                <i className="capy-npc-bubble">{npcBubble}</i>
+              )}
+              {orangeTarget === "moka" && <i className="capy-orange">🍊</i>}
               <img src={animalSprite} alt="" />
               <span>모카</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="capy-spring-steam" aria-hidden="true">
+              <i />
+              <i />
+              <i />
             </div>
+            <button
+              className="capy-neighbor capy-spring-friend-one"
+              aria-label="귤이와 온천 교감하기"
+              onClick={(event) =>
+                openSocial(event, {
+                  id: "gyul",
+                  name: "귤이",
+                  x: 34,
+                  y: 67,
+                })
+              }
+            >
+              {npcBubble && npcBubbleFor === "gyul" && (
+                <i className="capy-npc-bubble">{npcBubble}</i>
+              )}
+              <i className="capy-orange">🍊</i>
+              <img src={animalSprite} alt="" />
+              <span>귤이</span>
+            </button>
+            <button
+              className="capy-neighbor capy-spring-friend-two"
+              aria-label="보글이와 온천 교감하기"
+              onClick={(event) =>
+                openSocial(event, {
+                  id: "bubble",
+                  name: "보글이",
+                  x: 66,
+                  y: 69,
+                })
+              }
+            >
+              {npcBubble && npcBubbleFor === "bubble" && (
+                <i className="capy-npc-bubble">{npcBubble}</i>
+              )}
+              <i className="capy-orange">🍊</i>
+              <img src={animalSprite} alt="" />
+              <span>보글이</span>
+            </button>
           </>
         )}
         {!guest && (
           <div
-            className={`capy-player ${walking ? "is-walking" : ""} ${dancing ? "is-dancing" : ""} ${guardStep === "charming" ? "is-charming" : ""} ${barStep === "wriggling" ? "is-bar-wriggling" : ""}`}
+            className={`capy-player is-local ${walking ? "is-walking" : ""} ${dancing ? "is-dancing" : ""} ${guardStep === "charming" ? "is-charming" : ""} ${barStep === "wriggling" ? "is-bar-wriggling" : ""} ${puffing ? "is-puffing" : ""} ${idlePhase ? `is-idle-${idlePhase}` : ""} ${socialPose ? `is-social-${socialPose}` : ""} ${zone === "spring" ? "is-soaking" : ""}`}
             style={{
               left: `${position.x}%`,
               top: `${position.y}%`,
               zIndex: Math.round(position.y),
             }}
             aria-label="내 카피바라"
+            role="button"
+            tabIndex={0}
+            onPointerDown={startSelfPress}
+            onPointerUp={endSelfPress}
+            onPointerCancel={endSelfPress}
+            onClick={clickSelf}
           >
             {bubble && <span className="capy-bubble">{bubble}</span>}
+            {idlePhase >= 3 && idlePhase < 4 && (
+              <i className="capy-butterfly" aria-label="카피바라에게 앉은 나비">
+                🦋
+              </i>
+            )}
+            {idlePhase >= 4 && (
+              <i className="capy-sleep" aria-label="졸고 있음">
+                z z z
+              </i>
+            )}
+            {(orangeTarget === "self" || zone === "spring") && (
+              <i className="capy-orange" aria-label="머리 위의 귤">
+                🍊
+              </i>
+            )}
             <img
               src={walkingSprite(facing).src}
               style={{ scale: walkingSprite(facing).flip ? "-1 1" : undefined }}
@@ -714,6 +1121,9 @@ export default function CapyPlaza({
               draggable={false}
             />
             <span className="capy-name">나</span>
+            {chorusCount >= 2 && (
+              <span className="capy-chorus-sticker">카피바라 합창단 ✦</span>
+            )}
             {guardStep === "charming" && (
               <div className="capy-map-charm" aria-live="polite">
                 <div aria-hidden="true">
@@ -744,15 +1154,29 @@ export default function CapyPlaza({
         {neighbors.map((neighbor) => (
           <div
             key={neighbor.id}
-            className={`capy-player capy-remote ${neighbor.walking ? "is-walking" : ""} ${neighbor.dancing ? "is-dancing" : ""}`}
+            className={`capy-player capy-remote ${neighbor.walking ? "is-walking" : ""} ${neighbor.dancing ? "is-dancing" : ""} ${neighbor.idleState ? `is-idle-${neighbor.idleState}` : ""}`}
             style={{
               left: `${neighbor.x}%`,
               top: `${neighbor.y}%`,
               zIndex: Math.round(neighbor.y),
             }}
+            role="button"
+            tabIndex={0}
+            aria-label={`${neighbor.name}과 교감하기`}
+            onClick={(event) =>
+              openSocial(event, {
+                id: neighbor.id,
+                name: neighbor.name,
+                x: neighbor.x,
+                y: neighbor.y,
+              })
+            }
           >
             {neighbor.bubble && (
               <span className="capy-bubble">{neighbor.bubble}</span>
+            )}
+            {(neighbor.orange || zone === "spring") && (
+              <i className="capy-orange">🍊</i>
             )}
             <img
               src={walkingSprite(neighbor.facing).src}
@@ -859,6 +1283,34 @@ export default function CapyPlaza({
         </div>
       )}
 
+      {socialTarget && (
+        <div className="capy-social-menu" role="dialog" aria-modal="false">
+          <small>SLOW SOCIAL · {socialTarget.name}</small>
+          <strong>어떻게 천천히 다가갈까?</strong>
+          <div>
+            <button onClick={() => performSocial("lie")}>옆에 눕기</button>
+            <button onClick={() => performSocial("nose")}>코 맞대기</button>
+            <button onClick={() => performSocial("orange")}>귤 올려주기</button>
+            <button onClick={() => performSocial("chin")}>턱 기대기</button>
+            <button onClick={() => performSocial("follow")}>
+              따라 꾸물거리기
+            </button>
+            <button onClick={() => performSocial("gaze")}>
+              말없이 바라보기
+            </button>
+            <button
+              className="is-chorus"
+              onClick={() => performSocial("chorus")}
+            >
+              같이 뀨앙하기
+            </button>
+            <button className="is-quiet" onClick={() => setSocialTarget(null)}>
+              가만히 있기
+            </button>
+          </div>
+        </div>
+      )}
+
       <header className="capy-hud-top">
         <div className="capy-brand">
           <span className="capy-brand-icon">✿</span>
@@ -869,7 +1321,12 @@ export default function CapyPlaza({
         <div className="capy-top-actions">
           {!guest && (
             <span className="capy-island-chip">
-              {zone === "club" ? "카피바라 클럽" : islandName} ·{" "}
+              {zone === "club"
+                ? "카피바라 클럽"
+                : zone === "spring"
+                  ? "비밀 귤 온천"
+                  : islandName}{" "}
+              ·{" "}
               {demo
                 ? "샘플"
                 : connected
@@ -877,6 +1334,16 @@ export default function CapyPlaza({
                   : "연결 중"}{" "}
               · {residentCount}명 거주
             </span>
+          )}
+          {!guest && (
+            <button
+              className="capy-round-button capy-sound-button"
+              aria-label={soundOn ? "카피바라 소리 끄기" : "카피바라 소리 켜기"}
+              aria-pressed={soundOn}
+              onClick={() => setSoundOn((current) => !current)}
+            >
+              {soundOn ? "뀨" : "…"}
+            </button>
           )}
           <button
             className="capy-round-button capy-menu-button"
@@ -904,16 +1371,23 @@ export default function CapyPlaza({
             <>
               <button
                 onClick={() =>
-                  zone === "club" ? changeZone("village") : requestClubEntry()
+                  zone === "village"
+                    ? requestClubEntry()
+                    : changeZone("village")
                 }
               >
-                {zone === "club" ? (
+                {zone !== "village" ? (
                   <ArrowLeft size={18} />
                 ) : (
                   <Music2 size={18} />
                 )}
-                {zone === "club" ? "노을 마을로" : "카피바라 클럽"}
+                {zone !== "village" ? "노을 마을로" : "카피바라 클럽"}
               </button>
+              {springDiscovered && zone !== "spring" && (
+                <button onClick={() => changeZone("spring")}>
+                  <span>♨</span> 비밀 귤 온천
+                </button>
+              )}
               <button onClick={onHome}>
                 <Home size={18} /> 나의 집
               </button>
@@ -958,7 +1432,12 @@ export default function CapyPlaza({
       ) : (
         <>
           <div className="capy-place-label">
-            <span>✦</span> {zone === "club" ? "카피바라 클럽" : "노을 마을"}{" "}
+            <span>✦</span>{" "}
+            {zone === "club"
+              ? "카피바라 클럽"
+              : zone === "spring"
+                ? "비밀 귤 온천"
+                : "노을 마을"}{" "}
             <small>바닥을 누르면 걸어가요</small>
             <small className="capy-live-count">
               {demo
@@ -968,7 +1447,7 @@ export default function CapyPlaza({
                   : "연결 중"}
             </small>
           </div>
-          {zone === "club" && (
+          {zone !== "village" && (
             <button
               className="capy-exit-club"
               onClick={() => changeZone("village")}
@@ -1001,6 +1480,41 @@ export default function CapyPlaza({
                 >
                   <span>{musicOn ? "🔊" : "🎵"}</span>
                   <small>하우스 비트</small>
+                </button>
+              </>
+            ) : zone === "spring" ? (
+              <>
+                <button
+                  onClick={() => gesture("첨벙! 💦")}
+                  aria-label="온천에서 첨벙하기"
+                >
+                  <span>💦</span>
+                  <small>첨벙</small>
+                </button>
+                <button
+                  onClick={() => {
+                    setBubble("귤이 둥실 떠갔다 🍊");
+                    setNpcBubble("귤 받았다…");
+                    setNpcBubbleFor("gyul");
+                    window.setTimeout(() => {
+                      setNpcBubble("");
+                      setNpcBubbleFor(null);
+                    }, 2400);
+                  }}
+                  aria-label="귤 밀어주기"
+                >
+                  <span>🍊</span>
+                  <small>귤 밀기</small>
+                </button>
+                <button
+                  onClick={() => {
+                    setBubble("뀨앙—…");
+                    sound("echo");
+                  }}
+                  aria-label="온천에서 뀨앙 메아리"
+                >
+                  <span>♨️</span>
+                  <small>뀨앙</small>
                 </button>
               </>
             ) : (
@@ -1073,7 +1587,11 @@ export default function CapyPlaza({
             <span>✿</span>{" "}
             {zone === "club"
               ? "HOUSE BEAT · 120 BPM"
-              : "바닥 클릭 또는 방향키로 걷기 · 클럽 입구에서 모카가 기다려요"}
+              : zone === "spring"
+                ? "귤이 둥둥 · 오래 있으면 모두 잠들어요"
+                : springDiscovered
+                  ? "바닥 클릭으로 걷기 · 오른쪽 꽃길 너머에 온천이 있어요"
+                  : "바닥 클릭으로 걷기 · 김이 나는 바위를 찾아보세요"}
           </div>
         </>
       )}
