@@ -50,7 +50,7 @@ import {
   uid,
   validateLayout,
 } from "@/domain/world";
-import { loadWorld, mutate, supabase } from "@/lib/store";
+import { loadDemo, loadWorld, mutate, supabase } from "@/lib/store";
 const Scene = dynamic(() => import("./world-scene"), {
   ssr: false,
   loading: () => (
@@ -198,6 +198,16 @@ export default function IsolaApp() {
     update();
     window.addEventListener("online", update);
     window.addEventListener("offline", update);
+    try {
+      const sample = loadDemo();
+      localStorage.setItem("isola-demo-active", "true");
+      setDemo(true);
+      setWorld(sample);
+      setBoot(false);
+    } catch {
+      setBoot(false);
+      tell("브라우저 저장 공간을 사용할 수 없어요. 저장 설정을 확인해 주세요.");
+    }
     if (supabase) {
       supabase.auth.getSession().then(async ({ data }) => {
         if (data.session) {
@@ -211,53 +221,8 @@ export default function IsolaApp() {
           } catch (e) {
             tell((e as Error).message);
           }
-        } else if (localStorage.getItem("isola-demo-active") === "true") {
-          try {
-            const sample = await loadWorld(true);
-            if (active) {
-              setDemo(true);
-              setWorld(sample);
-            }
-          } catch (e) {
-            tell((e as Error).message);
-          }
-        } else {
-          try {
-            const sample = await loadWorld(true);
-            if (active) {
-              localStorage.setItem("isola-demo-active", "true");
-              setDemo(true);
-              setWorld(sample);
-            }
-          } catch (e) {
-            tell((e as Error).message);
-          }
         }
-        if (active) setBoot(false);
       });
-    } else if (localStorage.getItem("isola-demo-active") === "true") {
-      setDemo(true);
-      loadWorld(true)
-        .then((sample) => {
-          if (active) setWorld(sample);
-        })
-        .catch((e) => tell((e as Error).message))
-        .finally(() => {
-          if (active) setBoot(false);
-        });
-    } else {
-      loadWorld(true)
-        .then((sample) => {
-          if (active) {
-            localStorage.setItem("isola-demo-active", "true");
-            setDemo(true);
-            setWorld(sample);
-          }
-        })
-        .catch((e) => tell((e as Error).message))
-        .finally(() => {
-          if (active) setBoot(false);
-        });
     }
     const onStorage = () => {
       if (active && localStorage.getItem("isola-demo-active") === "true")
@@ -418,10 +383,13 @@ export default function IsolaApp() {
   };
   if (boot)
     return (
-      <main className="boot">
-        <Leaf />
-        <h1>카피바라 스토리</h1>
-        <p>섬으로 가는 중이에요…</p>
+      <main className="capy-world-loading" aria-label="노을 마을을 여는 중">
+        <div className="capy-world-loading-club" aria-hidden="true" />
+        <div className="capy-world-loading-mark">
+          <span>✿</span>
+          <strong>카피바라 스토리</strong>
+          <small>노을 마을로 가는 중…</small>
+        </div>
       </main>
     );
   if (!world)

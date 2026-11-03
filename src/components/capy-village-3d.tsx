@@ -330,7 +330,7 @@ function House({
     return shape;
   }, [width, height]);
   return (
-    <group position={position}>
+    <group position={position} scale={club ? 1.28 : 1}>
       <mesh position={[0, 0.24, 0]} castShadow receiveShadow>
         <boxGeometry args={[width + 0.18, 0.48, depth + 0.18]} />
         <meshStandardMaterial
