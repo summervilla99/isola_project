@@ -4,7 +4,6 @@ test("a capybara can enter the club, dance, toast, and return to the village", a
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "카피바라로 들어가기" }).click();
   await expect(
     page.getByRole("region", { name: "카피바라 마을 광장" }),
   ).toBeVisible();
@@ -39,7 +38,6 @@ test("walking toward the doorway changes the character direction and enters the 
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "카피바라로 들어가기" }).click();
   await expect(page.locator(".capy-plaza")).toHaveClass(/has-world-3d/, {
     timeout: 20000,
   });
@@ -58,7 +56,6 @@ test("clicking the 3D ground walks the capybara toward that point", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "카피바라로 들어가기" }).click();
   await expect(page.locator(".capy-plaza")).toHaveClass(/has-world-3d/, {
     timeout: 20000,
   });
@@ -83,7 +80,7 @@ test("holding the mobile direction pad moves continuously", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.getByRole("button", { name: "카피바라로 들어가기" }).click();
+  await expect(page.locator(".capy-island-chip")).toContainText("샘플");
   const player = page.getByLabel("내 카피바라");
   const before = Number.parseFloat(
     (await player.getAttribute("style"))?.match(/top: ([\d.]+)%/)?.[1] ?? "0",

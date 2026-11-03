@@ -169,6 +169,14 @@ export default function IsolaApp() {
     [world?.profiles],
   );
   const tell = (s: string) => setToast(s);
+  const enterDemoWorld = async () => {
+    const sample = await loadWorld(true);
+    localStorage.setItem("isola-demo-active", "true");
+    setDemo(true);
+    setWorld(sample);
+    setView("island");
+    setModal(null);
+  };
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(""), 5500);
@@ -190,43 +198,66 @@ export default function IsolaApp() {
     update();
     window.addEventListener("online", update);
     window.addEventListener("offline", update);
-    if (localStorage.getItem("isola-demo-active") === "true") {
-      setDemo(true);
-      loadWorld(true)
-        .then((w) => {
-          if (active) {
-            setWorld(w);
-            setBoot(false);
-          }
-        })
-        .catch(() => {
-          if (active) {
-            setBoot(false);
-            tell(
-              "저장 공간을 사용할 수 없어요. 브라우저 설정을 확인해 주세요.",
-            );
-          }
-        });
-    } else if (supabase) {
+    if (supabase) {
       supabase.auth.getSession().then(async ({ data }) => {
         if (data.session) {
           try {
             const w = await loadWorld(false);
-            if (active) setWorld(w);
+            if (active) {
+              localStorage.removeItem("isola-demo-active");
+              setDemo(false);
+              setWorld(w);
+            }
+          } catch (e) {
+            tell((e as Error).message);
+          }
+        } else if (localStorage.getItem("isola-demo-active") === "true") {
+          try {
+            const sample = await loadWorld(true);
+            if (active) {
+              setDemo(true);
+              setWorld(sample);
+            }
+          } catch (e) {
+            tell((e as Error).message);
+          }
+        } else {
+          try {
+            const sample = await loadWorld(true);
+            if (active) {
+              localStorage.setItem("isola-demo-active", "true");
+              setDemo(true);
+              setWorld(sample);
+            }
           } catch (e) {
             tell((e as Error).message);
           }
         }
         if (active) setBoot(false);
       });
+    } else if (localStorage.getItem("isola-demo-active") === "true") {
+      setDemo(true);
+      loadWorld(true)
+        .then((sample) => {
+          if (active) setWorld(sample);
+        })
+        .catch((e) => tell((e as Error).message))
+        .finally(() => {
+          if (active) setBoot(false);
+        });
     } else {
-      if (localStorage.getItem("isola-demo-active") === "true") {
-        setDemo(true);
-        loadWorld(true)
-          .then(setWorld)
-          .catch(() => {});
-      }
-      setBoot(false);
+      loadWorld(true)
+        .then((sample) => {
+          if (active) {
+            localStorage.setItem("isola-demo-active", "true");
+            setDemo(true);
+            setWorld(sample);
+          }
+        })
+        .catch((e) => tell((e as Error).message))
+        .finally(() => {
+          if (active) setBoot(false);
+        });
     }
     const onStorage = () => {
       if (active && localStorage.getItem("isola-demo-active") === "true")
@@ -324,10 +355,7 @@ export default function IsolaApp() {
   };
   const startDemo = async () => {
     try {
-      setDemo(true);
-      localStorage.setItem("isola-demo-active", "true");
-      setWorld(await loadWorld(true));
-      setView("island");
+      await enterDemoWorld();
     } catch {
       tell("브라우저 저장 공간을 사용할 수 없어요. 저장 설정을 확인해 주세요.");
     }
@@ -362,9 +390,7 @@ export default function IsolaApp() {
   };
   const signOut = async () => {
     if (supabase && !demo) await supabase.auth.signOut();
-    localStorage.removeItem("isola-demo-active");
-    setWorld(null);
-    setDemo(false);
+    await enterDemoWorld();
     setDetail(undefined);
     setView("island");
     setEditing(false);
@@ -379,6 +405,17 @@ export default function IsolaApp() {
     setEditingItem(undefined);
     setModal("item");
   };
+  const completeLogin = async () => {
+    try {
+      const signedInWorld = await loadWorld(false);
+      localStorage.removeItem("isola-demo-active");
+      setDemo(false);
+      setWorld(signedInWorld);
+      setModal(null);
+    } catch (e) {
+      tell((e as Error).message);
+    }
+  };
   if (boot)
     return (
       <main className="boot">
@@ -389,93 +426,23 @@ export default function IsolaApp() {
     );
   if (!world)
     return (
-      <main className="landing capy-landing">
-        <CapyPlaza
-          guest
-          onExplore={startDemo}
-          onLogin={() => setModal("login")}
-        />
-        <nav className="landing-nav">
-          <a className="wordmark" href="/">
-            카피바라 스토리<span>CAPYBARA STORY</span>
-          </a>
-          <button className="btn subtle" onClick={() => setModal("login")}>
-            로그인 <ArrowRight size={16} />
-          </button>
-        </nav>
-        <div className="landing-content">
-          <p className="eyebrow">
-            <Leaf size={16} /> A LITTLE WORLD, ALL YOURS
-          </p>
-          <h1>
-            좋아하는 것들로
-            <br />
-            채운, 우리의 섬.
-          </h1>
-          <p className="landing-copy">
-            바다 한가운데 작은 집 하나.
-            <br />
-            나다운 모습으로 머물고, 친구의 취향을 만나세요.
-          </p>
-          <div className="landing-actions">
-            <button className="btn primary" onClick={() => setModal("login")}>
-              나의 섬 시작하기 <ArrowRight size={17} />
-            </button>
-            <button className="btn outline" onClick={startDemo}>
-              샘플 섬 둘러보기
-            </button>
-          </div>
-          <p className="micro">
-            초대받은 친구들과 함께 · 1명부터 8명까지 · 웹에서 바로
-          </p>
-          {pendingToken && (
-            <div className="notice">
-              친구가 섬에 초대했어요. 로그인 후 초대를 수락할 수 있어요.
-            </div>
-          )}
-        </div>
-        <div className="landing-art" aria-hidden="true">
-          <div className="sun-disc" />
-          <div className="cloud cloud-one" />
-          <div className="cloud cloud-two" />
-          <div className="illustration-island">
-            <div className="tiny-house">
-              <div className="roof" />
-              <div className="door" />
-              <div className="window" />
-            </div>
-            <span className="tree tree-one">♣</span>
-            <span className="tree tree-two">♣</span>
-            <span className="tree tree-three">♣</span>
-            <span className="flowers">✿ &nbsp; ✿ &nbsp; ✿</span>
-          </div>
-          <div className="sea-ring ring-one" />
-          <div className="sea-ring ring-two" />
-          <span className="art-caption">노을 마을의 카피바라 스토리</span>
-        </div>
-        <footer className="landing-footer">
-          <span>작고 다정한 세계를 만드는 중입니다.</span>
-          <span>Make yourself at home.</span>
-        </footer>
-        {modal === "login" && (
-          <Login
-            onClose={() => setModal(null)}
-            onDone={async () => {
-              setDemo(false);
-              localStorage.removeItem("isola-demo-active");
-              try {
-                setWorld(await loadWorld(false));
-                setModal(null);
-              } catch (e) {
-                tell((e as Error).message);
-              }
-            }}
-          />
+      <main className="boot">
+        <Leaf />
+        <h1>마을을 불러오지 못했어요</h1>
+        <p>연결을 확인한 뒤 다시 들어와 주세요.</p>
+        <button className="btn primary" onClick={() => void startDemo()}>
+          샘플 마을 다시 열기 <ArrowRight size={16} />
+        </button>
+        {pendingToken && (
+          <p>친구 초대가 있어요. 먼저 샘플 마을을 열어 주세요.</p>
         )}
         {toast && (
           <div className="toast" role="status">
             {toast}
           </div>
+        )}
+        {modal === "login" && (
+          <Login onClose={() => setModal(null)} onDone={completeLogin} />
         )}
       </main>
     );
@@ -510,9 +477,7 @@ export default function IsolaApp() {
           onPeople={() => navigate("people")}
           onInvite={() => setModal("invite")}
           onProfile={() => setModal("profile")}
-          onCreateAccount={() => {
-            void signOut().then(() => setModal("login"));
-          }}
+          onCreateAccount={() => setModal("login")}
         />
       )}
       {!(view === "island" && world.island) && (
@@ -659,8 +624,8 @@ export default function IsolaApp() {
                   <Sparkles size={13} /> 샘플 섬 · 변경사항은 이 브라우저에만
                   저장돼요
                 </span>
-                <button onClick={signOut}>
-                  실제 계정으로 시작하기 <ArrowRight size={13} />
+                <button onClick={() => setModal("login")}>
+                  계정으로 연결하기 <ArrowRight size={13} />
                 </button>
               </div>
             )}
@@ -1773,6 +1738,9 @@ export default function IsolaApp() {
             </main>
           </div>
         </>
+      )}
+      {modal === "login" && (
+        <Login onClose={() => setModal(null)} onDone={completeLogin} />
       )}
       {modal === "profile" && (
         <ProfileForm
