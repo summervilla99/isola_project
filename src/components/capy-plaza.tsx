@@ -155,6 +155,7 @@ export default function CapyPlaza({
   const [neighbors, setNeighbors] = useState<Neighbor[]>([]);
   const remoteIdleTimers = useRef(new Map<string, number>());
   const [connected, setConnected] = useState(false);
+  const [connectionTimedOut, setConnectionTimedOut] = useState(false);
   const presenceIdRef = useRef(
     demo
       ? `visitor-${Math.random().toString(36).slice(2, 10)}`
@@ -822,10 +823,11 @@ export default function CapyPlaza({
     const client = supabase;
     const presenceId = presenceIdRef.current;
     const room = client.channel("capy-public:plaza", {
-      config: { presence: { key: presenceId } },
+      config: { private: false, presence: { key: presenceId } },
     });
     channel.current = room;
     let subscribed = false;
+    setConnectionTimedOut(false);
     const visiblePeer = (peer: Neighbor) =>
       peer.id &&
       peer.id !== presenceId &&
@@ -952,6 +954,7 @@ export default function CapyPlaza({
         if (status === "SUBSCRIBED") {
           subscribed = true;
           setConnected(true);
+          setConnectionTimedOut(false);
           await room.track({
             id: presenceId,
             name: presenceName,
@@ -968,8 +971,15 @@ export default function CapyPlaza({
         ) {
           subscribed = false;
           setConnected(false);
+          setConnectionTimedOut(true);
         }
       });
+    const connectionTimer = window.setTimeout(() => {
+      if (!subscribed) {
+        setConnected(false);
+        setConnectionTimedOut(true);
+      }
+    }, 8000);
     const refresh = window.setInterval(() => {
       if (subscribed)
         void room.track({
@@ -984,12 +994,14 @@ export default function CapyPlaza({
     }, 5000);
     return () => {
       window.clearInterval(refresh);
+      window.clearTimeout(connectionTimer);
       for (const timer of remoteIdleTimers.current.values())
         window.clearTimeout(timer);
       remoteIdleTimers.current.clear();
       channel.current = null;
       void client.removeChannel(room);
       setConnected(false);
+      setConnectionTimedOut(false);
       setNeighbors([]);
     };
   }, [demo, guest, presenceName]);
@@ -1519,8 +1531,13 @@ export default function CapyPlaza({
                 : zone === "spring"
                   ? "비밀 귤 온천"
                   : islandName}{" "}
-              · {connected ? `${neighbors.length + 1}명 온라인` : "연결 중"} ·{" "}
-              {residentCount}명 거주
+              ·{" "}
+              {connected
+                ? `${neighbors.length + 1}명 온라인`
+                : connectionTimedOut
+                  ? "오프라인 모드"
+                  : "연결 중"}{" "}
+              · {residentCount}명 거주
             </span>
           )}
           {!guest && (
