@@ -155,6 +155,12 @@ export default function CapyPlaza({
   const [neighbors, setNeighbors] = useState<Neighbor[]>([]);
   const remoteIdleTimers = useRef(new Map<string, number>());
   const [connected, setConnected] = useState(false);
+  const presenceIdRef = useRef(
+    demo
+      ? `visitor-${Math.random().toString(36).slice(2, 10)}`
+      : (userId ?? `visitor-${Math.random().toString(36).slice(2, 10)}`),
+  );
+  const presenceName = userName ?? "이름 없는 카피바라";
   const channel = useRef<ReturnType<
     NonNullable<typeof supabase>["channel"]
   > | null>(null);
@@ -265,7 +271,12 @@ export default function CapyPlaza({
         void channel.current?.send({
           type: "broadcast",
           event: "gesture",
-          payload: { id: userId, zone, bubble: message, dancing: false },
+          payload: {
+            id: presenceIdRef.current,
+            zone,
+            bubble: message,
+            dancing: false,
+          },
         });
     }, 260);
   };
@@ -472,7 +483,7 @@ export default function CapyPlaza({
         type: "broadcast",
         event: "social",
         payload: {
-          id: userId,
+          id: presenceIdRef.current,
           zone,
           targetId: socialTarget.id,
           action,
@@ -807,10 +818,187 @@ export default function CapyPlaza({
   }, [islandId, userId, userName, demo]);
 
   useEffect(() => {
+    if (!supabase || !demo || guest) return;
+    const client = supabase;
+    const presenceId = presenceIdRef.current;
+    const room = client.channel("capy-public:plaza", {
+      config: { presence: { key: presenceId } },
+    });
+    channel.current = room;
+    let subscribed = false;
+    const visiblePeer = (peer: Neighbor) =>
+      peer.id &&
+      peer.id !== presenceId &&
+      peer.zone === zoneRef.current &&
+      Number.isFinite(peer.x) &&
+      Number.isFinite(peer.y);
+    const updateNeighbors = () => {
+      const peers = Object.values(
+        room.presenceState(),
+      ).flat() as unknown as Neighbor[];
+      setNeighbors(
+        peers.filter(visiblePeer).map((peer) => ({
+          id: peer.id,
+          name: peer.name ?? "카피바라",
+          zone: peer.zone,
+          x: clamp(
+            peer.x,
+            peer.zone === "spring" ? 17 : peer.zone === "club" ? 14 : 8,
+            peer.zone === "spring" ? 83 : peer.zone === "club" ? 86 : 92,
+          ),
+          y: clamp(peer.y, peer.zone === "spring" ? 49 : 38, 92),
+          facing: peer.facing ?? 0,
+          idleState: peer.idleState ?? 0,
+          orange: !!peer.orange,
+        })),
+      );
+    };
+    room
+      .on("presence", { event: "sync" }, updateNeighbors)
+      .on("broadcast", { event: "walk" }, ({ payload }) => {
+        const peer = payload as Neighbor;
+        if (!visiblePeer(peer)) return;
+        setNeighbors((current) =>
+          current.map((item) =>
+            item.id === peer.id
+              ? {
+                  ...item,
+                  x: clamp(
+                    peer.x,
+                    peer.zone === "spring" ? 17 : peer.zone === "club" ? 14 : 8,
+                    peer.zone === "spring"
+                      ? 83
+                      : peer.zone === "club"
+                        ? 86
+                        : 92,
+                  ),
+                  y: clamp(peer.y, peer.zone === "spring" ? 49 : 38, 92),
+                  facing: peer.facing ?? item.facing,
+                  walking: true,
+                }
+              : item,
+          ),
+        );
+        const previousTimer = remoteIdleTimers.current.get(peer.id);
+        if (previousTimer) window.clearTimeout(previousTimer);
+        remoteIdleTimers.current.set(
+          peer.id,
+          window.setTimeout(() => {
+            setNeighbors((current) =>
+              current.map((item) =>
+                item.id === peer.id ? { ...item, walking: false } : item,
+              ),
+            );
+            remoteIdleTimers.current.delete(peer.id);
+          }, 260),
+        );
+      })
+      .on("broadcast", { event: "gesture" }, ({ payload }) => {
+        const peer = payload as Neighbor;
+        if (!visiblePeer(peer) || !peer.bubble) return;
+        setNeighbors((current) =>
+          current.map((item) =>
+            item.id === peer.id
+              ? { ...item, bubble: peer.bubble, dancing: !!peer.dancing }
+              : item,
+          ),
+        );
+        window.setTimeout(
+          () =>
+            setNeighbors((current) =>
+              current.map((item) =>
+                item.id === peer.id ? { ...item, bubble: undefined } : item,
+              ),
+            ),
+          2400,
+        );
+      })
+      .on("broadcast", { event: "social" }, ({ payload }) => {
+        const event = payload as {
+          id?: string;
+          zone?: Zone;
+          targetId?: string;
+          action?: SocialAction;
+          bubble?: string;
+        };
+        if (
+          !event.id ||
+          event.id === presenceId ||
+          event.zone !== zoneRef.current
+        )
+          return;
+        setNeighbors((current) =>
+          current.map((item) =>
+            item.id === event.id
+              ? {
+                  ...item,
+                  bubble: event.bubble,
+                  dancing: event.action === "chorus",
+                  orange: event.action === "orange" ? true : item.orange,
+                }
+              : item,
+          ),
+        );
+        if (event.targetId === presenceId) {
+          setBubble(
+            event.action === "orange"
+              ? "머리에 귤이 올라왔다 🍊"
+              : "친구가 천천히 다가왔다…",
+          );
+          if (event.action === "orange") setOrangeTarget("self");
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          subscribed = true;
+          setConnected(true);
+          await room.track({
+            id: presenceId,
+            name: presenceName,
+            zone: zoneRef.current,
+            ...player.current,
+            facing: facingRef.current,
+            idleState: idlePhaseRef.current,
+            orange: orangeRef.current,
+          });
+        } else if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT" ||
+          status === "CLOSED"
+        ) {
+          subscribed = false;
+          setConnected(false);
+        }
+      });
+    const refresh = window.setInterval(() => {
+      if (subscribed)
+        void room.track({
+          id: presenceId,
+          name: presenceName,
+          zone: zoneRef.current,
+          ...player.current,
+          facing: facingRef.current,
+          idleState: idlePhaseRef.current,
+          orange: orangeRef.current,
+        });
+    }, 5000);
+    return () => {
+      window.clearInterval(refresh);
+      for (const timer of remoteIdleTimers.current.values())
+        window.clearTimeout(timer);
+      remoteIdleTimers.current.clear();
+      channel.current = null;
+      void client.removeChannel(room);
+      setConnected(false);
+      setNeighbors([]);
+    };
+  }, [demo, guest, presenceName]);
+
+  useEffect(() => {
     if (connected)
       void channel.current?.track({
-        id: userId,
-        name: userName ?? "카피바라",
+        id: presenceIdRef.current,
+        name: presenceName,
         zone,
         ...player.current,
         facing: facingRef.current,
@@ -830,7 +1018,12 @@ export default function CapyPlaza({
     void channel.current.send({
       type: "broadcast",
       event: "walk",
-      payload: { id: userId, zone, ...position, facing },
+      payload: {
+        id: presenceIdRef.current,
+        zone,
+        ...position,
+        facing,
+      },
     });
   }, [position, facing, connected, userId, zone]);
 
@@ -842,7 +1035,7 @@ export default function CapyPlaza({
         type: "broadcast",
         event: "gesture",
         payload: {
-          id: userId,
+          id: presenceIdRef.current,
           zone,
           bubble: message,
           dancing: dance ? !dancing : dancing,
@@ -1326,13 +1519,8 @@ export default function CapyPlaza({
                 : zone === "spring"
                   ? "비밀 귤 온천"
                   : islandName}{" "}
-              ·{" "}
-              {demo
-                ? "샘플"
-                : connected
-                  ? `${neighbors.length + 1}명 접속`
-                  : "연결 중"}{" "}
-              · {residentCount}명 거주
+              · {connected ? `${neighbors.length + 1}명 온라인` : "연결 중"} ·{" "}
+              {residentCount}명 거주
             </span>
           )}
           {!guest && (
