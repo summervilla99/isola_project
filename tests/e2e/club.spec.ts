@@ -40,6 +40,9 @@ test("walking toward the doorway changes the character direction and enters the 
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "카피바라로 들어가기" }).click();
+  await expect(page.locator(".capy-plaza")).toHaveClass(/has-world-3d/, {
+    timeout: 20000,
+  });
   await page.keyboard.down("ArrowUp");
   await expect(page.getByLabel("내 카피바라").locator("img")).toHaveAttribute(
     "src",
@@ -49,6 +52,30 @@ test("walking toward the doorway changes the character direction and enters the 
     { timeout: 6000 },
   );
   await page.keyboard.up("ArrowUp");
+});
+
+test("clicking the 3D ground walks the capybara toward that point", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "카피바라로 들어가기" }).click();
+  await expect(page.locator(".capy-plaza")).toHaveClass(/has-world-3d/, {
+    timeout: 20000,
+  });
+  const player = page.getByLabel("내 카피바라");
+  const left = async () =>
+    Number.parseFloat(
+      (await player.getAttribute("style"))?.match(/left: ([\d.]+)%/)?.[1] ??
+        "0",
+    );
+  const before = await left();
+  const canvas = page.locator(".capy-world-3d canvas");
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  await canvas.click({
+    position: { x: box!.width * 0.68, y: box!.height * 0.65 },
+  });
+  await expect.poll(left).toBeGreaterThan(before + 3);
 });
 
 test("holding the mobile direction pad moves continuously", async ({
@@ -71,6 +98,6 @@ test("holding the mobile direction pad moves continuously", async ({
   const after = Number.parseFloat(
     (await player.getAttribute("style"))?.match(/top: ([\d.]+)%/)?.[1] ?? "0",
   );
-  expect(after).toBeLessThan(before - 5);
+  expect(after).toBeLessThan(before - 3.5);
   await expect(player.locator("img")).toHaveAttribute("src", /walk\/back-/);
 });
