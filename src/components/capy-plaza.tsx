@@ -56,13 +56,13 @@ const animalSprite = "/capy-world/animal/player-v1.webp";
 
 function walkablePoint(point: Position, zone: Zone): Position {
   const club = zone === "club";
-  const y = clamp(point.y, club ? 51 : 43, club ? 88 : 90);
+  const y = clamp(point.y, club ? 48 : 38, club ? 92 : 94);
   const narrowEntrance = club ? y < 58 : y < 53;
   return {
     x: clamp(
       point.x,
-      narrowEntrance ? (club ? 35 : 44) : club ? 22 : 16,
-      narrowEntrance ? (club ? 66 : 56) : club ? 78 : 84,
+      narrowEntrance ? (club ? 33 : 43) : club ? 14 : 8,
+      narrowEntrance ? (club ? 67 : 57) : club ? 86 : 92,
     ),
     y,
   };
@@ -114,6 +114,11 @@ export default function CapyPlaza({
   const doorVisits = useRef(0);
   const [dancing, setDancing] = useState(false);
   const [musicOn, setMusicOn] = useState(false);
+  const [bartenderOpen, setBartenderOpen] = useState(false);
+  const [barStep, setBarStep] = useState<"hello" | "wriggling" | "served">(
+    "hello",
+  );
+  const [drinkCount, setDrinkCount] = useState(0);
   const zoneRef = useRef<Zone>("village");
   const audioContext = useRef<AudioContext | null>(null);
   const [neighbors, setNeighbors] = useState<Neighbor[]>([]);
@@ -165,6 +170,8 @@ export default function CapyPlaza({
       setGuardStep("hello");
       setCharmPhase(0);
       setDoorHint("");
+      setBartenderOpen(false);
+      setBarStep("hello");
       facingRef.current = 0;
       setFacing(0);
       moveSpeed.current = 0;
@@ -190,6 +197,8 @@ export default function CapyPlaza({
     club.src = "/capy-world/club-v3.avif";
     const dj = new Image();
     dj.src = "/capy-world/animal/dj-v1.webp";
+    const bartender = new Image();
+    bartender.src = "/capy-world/animal/bartender-v1.webp";
   }, [guest, onExplore]);
 
   useEffect(() => {
@@ -243,6 +252,29 @@ export default function CapyPlaza({
     setDoorHint("모카가 고개를 젓는다. 리듬은 맞는데… 뭔가 다르다.");
     setBubble("…아닌가? 🥲");
   };
+
+  const askBartender = () => {
+    destination.current = { ...player.current };
+    moveSpeed.current = 0;
+    setWalking(false);
+    setBarStep("hello");
+    setBartenderOpen(true);
+  };
+
+  const wriggleForDrink = () => {
+    setBarStep("wriggling");
+    setBubble("꾸물… 꾸물꾸물… 🍹");
+  };
+
+  useEffect(() => {
+    if (barStep !== "wriggling") return;
+    const timer = window.setTimeout(() => {
+      setBarStep("served");
+      setDrinkCount((current) => current + 1);
+      setBubble("노을 거품주 받았다! 🍹");
+    }, 3200);
+    return () => window.clearTimeout(timer);
+  }, [barStep]);
 
   useEffect(() => {
     let frame = 0;
@@ -327,9 +359,12 @@ export default function CapyPlaza({
 
   useEffect(() => {
     if (!bubble) return;
-    const timeout = window.setTimeout(() => setBubble(""), 2400);
+    const timeout = window.setTimeout(
+      () => setBubble(""),
+      barStep === "wriggling" ? 3400 : 2400,
+    );
     return () => window.clearTimeout(timeout);
-  }, [bubble]);
+  }, [bubble, barStep]);
 
   useEffect(() => {
     const context = audioContext.current;
@@ -577,10 +612,10 @@ export default function CapyPlaza({
   const cameraFocus = zone === "club" ? CLUB_START : START;
   const cameraX = reducedMotion
     ? 0
-    : clamp((cameraFocus.x - position.x) * 0.65, -20, 20);
+    : clamp((cameraFocus.x - position.x) * 0.48, -15, 15);
   const cameraY = reducedMotion
     ? 0
-    : clamp((cameraFocus.y - position.y) * 0.45, -12, 12);
+    : clamp((cameraFocus.y - position.y) * 0.3, -8, 8);
 
   return (
     <section
@@ -591,7 +626,7 @@ export default function CapyPlaza({
         ref={map}
         className="capy-map"
         style={{
-          transform: `translate(calc(-50% + ${cameraX}px), calc(-50% + ${cameraY}px)) scale(1.03)`,
+          transform: `translate(calc(-50% + ${cameraX}vw), calc(-50% + ${cameraY}dvh))`,
         }}
         onClick={handleMapClick}
       >
@@ -634,6 +669,17 @@ export default function CapyPlaza({
               <img src="/capy-world/animal/dj-v1.webp" alt="" />
               <span>DJ 밤톨</span>
             </div>
+            <button
+              className={`capy-bartender ${barStep === "wriggling" ? "is-watching" : ""}`}
+              aria-label="바텐더 카피바라 코코에게 주문하기"
+              onClick={(event) => {
+                event.stopPropagation();
+                askBartender();
+              }}
+            >
+              <img src="/capy-world/animal/bartender-v1.webp" alt="" />
+              <span>바텐더 코코</span>
+            </button>
             <div
               className="capy-neighbor capy-club-dancer-one"
               aria-hidden="true"
@@ -652,7 +698,7 @@ export default function CapyPlaza({
         )}
         {!guest && (
           <div
-            className={`capy-player ${walking ? "is-walking" : ""} ${dancing ? "is-dancing" : ""}`}
+            className={`capy-player ${walking ? "is-walking" : ""} ${dancing ? "is-dancing" : ""} ${guardStep === "charming" ? "is-charming" : ""} ${barStep === "wriggling" ? "is-bar-wriggling" : ""}`}
             style={{
               left: `${position.x}%`,
               top: `${position.y}%`,
@@ -668,6 +714,31 @@ export default function CapyPlaza({
               draggable={false}
             />
             <span className="capy-name">나</span>
+            {guardStep === "charming" && (
+              <div className="capy-map-charm" aria-live="polite">
+                <div aria-hidden="true">
+                  <i>♥</i>
+                  <i>✦</i>
+                  <i>✿</i>
+                </div>
+                <small>귀여움 측정 중</small>
+                <span>
+                  <i
+                    style={{
+                      width: `${[0, 24, 52, 86, 100][charmPhase]}%`,
+                    }}
+                  />
+                </span>
+                <strong>
+                  {charmPhase < 2
+                    ? "납작…"
+                    : charmPhase < 3
+                      ? "꾸물꾸물…"
+                      : "귀여움 120%"}
+                </strong>
+                <button onClick={finishCharm}>건너뛰기</button>
+              </div>
+            )}
           </div>
         )}
         {neighbors.map((neighbor) => (
@@ -695,33 +766,6 @@ export default function CapyPlaza({
           </div>
         ))}
       </div>
-
-      {zone === "village" && guardOpen && guardStep === "charming" && (
-        <div className={`capy-charm-cutscene is-phase-${charmPhase}`}>
-          <div className="capy-charm-hearts" aria-hidden="true">
-            <span>♥</span>
-            <span>✦</span>
-            <span>♥</span>
-            <span>✿</span>
-          </div>
-          <img src={animalSprite} alt="배를 붙이고 애교 부리는 카피바라" />
-          <div className="capy-charm-meter" aria-live="polite">
-            <span>귀여움 측정 중</span>
-            <div>
-              <i style={{ width: `${[0, 24, 52, 86, 100][charmPhase]}%` }} />
-            </div>
-            <strong>
-              {charmPhase < 2
-                ? "납작…"
-                : charmPhase < 3
-                  ? "꾸물꾸물…"
-                  : "귀여움 120%"}
-            </strong>
-          </div>
-          <p>모카 앞에서 온몸으로 최선을 다하는 중…</p>
-          <button onClick={finishCharm}>연출 건너뛰기</button>
-        </div>
-      )}
 
       {zone === "village" && guardOpen && guardStep !== "charming" && (
         <div className="capy-guard-dialogue" role="dialog" aria-modal="true">
@@ -781,6 +825,36 @@ export default function CapyPlaza({
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {zone === "club" && bartenderOpen && (
+        <div className="capy-bar-dialogue" role="dialog" aria-modal="false">
+          <small>COCO&apos;S BAR · 오늘의 주문법</small>
+          <strong>바텐더 코코</strong>
+          <p>
+            {barStep === "hello"
+              ? "여긴 돈보다 리듬을 받아. 바닥에 배 붙이고 세 번만 꾸물거려 봐."
+              : barStep === "wriggling"
+                ? "하나… 둘… 꾸물… 좋아, 거품이 올라온다."
+                : `완벽한 꾸물거림이었어. 노을 거품주 ${drinkCount}잔째야. 천천히 즐겨.`}
+          </p>
+          <div>
+            {barStep !== "wriggling" && (
+              <button onClick={wriggleForDrink}>
+                {barStep === "served"
+                  ? "한 잔 더 꾸물거리기"
+                  : "꾸물거려서 주문하기"}
+              </button>
+            )}
+            {barStep === "wriggling" && <b>꾸물거림 감별 중 ···</b>}
+            <button
+              className="is-quiet"
+              onClick={() => setBartenderOpen(false)}
+            >
+              바에서 나오기
+            </button>
           </div>
         </div>
       )}

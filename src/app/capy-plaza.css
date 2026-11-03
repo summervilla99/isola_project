@@ -352,8 +352,8 @@
 
 .capy-map {
   position: absolute;
-  width: max(100vw, 177.68dvh);
-  height: max(100dvh, 56.28vw);
+  width: max(124vw, 220.25dvh);
+  height: max(124dvh, 69.75vw);
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
@@ -397,13 +397,13 @@
   position: absolute;
   z-index: 100;
   left: 50%;
-  top: 51%;
+  top: 42%;
   transform: translate(-50%, -50%);
   display: grid;
-  place-items: end center;
-  width: 16%;
-  height: 23%;
-  padding-bottom: 1%;
+  place-items: start center;
+  width: 14%;
+  height: 17%;
+  padding-top: 1%;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -435,7 +435,7 @@
   position: absolute;
   z-index: 64;
   left: 61.5%;
-  top: 63%;
+  top: 62%;
   display: grid;
   justify-items: center;
   transform: translate(-50%, -88%);
@@ -446,7 +446,7 @@
 }
 
 .capy-guard img {
-  width: clamp(118px, 11vw, 182px);
+  width: clamp(82px, 8vw, 132px);
   filter: drop-shadow(0 10px 5px #67484c69);
 }
 
@@ -454,7 +454,7 @@
   position: absolute;
   top: 18%;
   right: 13%;
-  font-size: clamp(20px, 2.1vw, 34px);
+  font-size: clamp(15px, 1.55vw, 25px);
   font-style: normal;
   transform: rotate(-7deg);
   filter: drop-shadow(0 2px 2px #39242a80);
@@ -527,6 +527,49 @@
   font-size: 9px;
   font-weight: 900;
   letter-spacing: 0.08em;
+}
+
+.capy-bartender {
+  position: absolute;
+  z-index: 5;
+  left: 84%;
+  top: 44%;
+  display: grid;
+  width: clamp(138px, 16vw, 250px);
+  place-items: end center;
+  overflow: hidden;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  mask-image: linear-gradient(black 0 82%, transparent 99%);
+}
+
+.capy-bartender img {
+  width: 100%;
+  transform-origin: 50% 80%;
+  transition: transform 180ms ease;
+  filter: drop-shadow(0 12px 18px #3a0c1f75);
+}
+
+.capy-bartender:hover img,
+.capy-bartender:focus-visible img,
+.capy-bartender.is-watching img {
+  transform: translateY(-3px) rotate(-1.5deg);
+}
+
+.capy-bartender span {
+  position: absolute;
+  bottom: 3px;
+  padding: 4px 9px;
+  border: 1px solid #ffd1bbad;
+  border-radius: 20px;
+  background: #3d161de3;
+  color: #ffe1cf;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
 }
 
 .capy-exit-club {
@@ -833,18 +876,18 @@
 .capy-neighbor img,
 .capy-player img {
   display: block;
-  width: clamp(125px, 13vw, 205px);
+  width: clamp(88px, 9vw, 145px);
   height: auto;
   filter: drop-shadow(0 10px 6px #67484c69);
 }
 
 .capy-player img {
-  width: clamp(145px, 15vw, 235px);
+  width: clamp(102px, 10.6vw, 168px);
 }
 
 .capy-plaza.is-club .capy-neighbor img,
 .capy-plaza.is-club .capy-player img {
-  width: clamp(150px, 16vw, 250px);
+  width: clamp(100px, 11vw, 174px);
 }
 
 .capy-neighbor span,
@@ -991,137 +1034,159 @@
   font-style: normal;
 }
 
-.capy-charm-cutscene {
+.capy-player.is-charming img,
+.capy-player.is-bar-wriggling img {
+  animation: capy-map-wriggle 0.52s ease-in-out infinite alternate;
+}
+
+.capy-map-charm {
   position: absolute;
-  z-index: 28;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 54%, #fff1cc42, transparent 24%),
-    linear-gradient(180deg, #261a2138, #29182080);
-  color: #fff7ea;
+  z-index: 8;
+  left: 50%;
+  bottom: calc(100% + 42px);
+  width: 190px;
+  padding: 9px 11px;
+  transform: translateX(-50%);
+  border: 1px solid #fff3d8d9;
+  border-radius: 16px;
+  background: #321f2be8;
+  box-shadow: 0 12px 35px #3a172f75;
+  color: #fff7e8;
   text-align: center;
-  backdrop-filter: blur(3px);
+  pointer-events: auto;
 }
 
-.capy-charm-cutscene > img {
+.capy-map-charm > div {
   position: absolute;
-  z-index: 2;
-  left: 50%;
-  top: 51%;
-  width: clamp(260px, 38vw, 560px);
-  transform: translate(-50%, -50%);
-  filter: drop-shadow(0 25px 18px #4e263663);
-  animation: capy-charm-performance 1.05s ease-in-out infinite;
+  inset: -45px -20px;
+  pointer-events: none;
 }
 
-.capy-charm-cutscene.is-phase-3 > img {
-  animation-duration: 0.52s;
-}
-
-.capy-charm-cutscene > p {
+.capy-map-charm > div i {
   position: absolute;
-  z-index: 3;
-  left: 50%;
-  bottom: 9%;
-  margin: 0;
-  transform: translateX(-50%);
-  padding: 7px 12px;
-  border-radius: 20px;
-  background: #38202bd9;
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
+  color: #ff7f9b;
+  font-size: 24px;
+  font-style: normal;
+  opacity: 0;
+  animation: capy-heart-pop 1.5s ease-out infinite;
 }
 
-.capy-charm-cutscene > button {
-  position: absolute;
-  z-index: 4;
-  right: 22px;
-  bottom: 20px;
-  padding: 7px 10px;
-  border: 1px solid #fff1df6b;
-  border-radius: 12px;
-  background: #2e1d25a6;
-  color: #e7d2cb;
+.capy-map-charm > div i:nth-child(1) {
+  left: 12px;
+  bottom: 8px;
+}
+
+.capy-map-charm > div i:nth-child(2) {
+  right: 18px;
+  top: 2px;
+  animation-delay: 0.35s;
+}
+
+.capy-map-charm > div i:nth-child(3) {
+  right: 2px;
+  bottom: 0;
+  animation-delay: 0.7s;
+}
+
+.capy-map-charm small,
+.capy-map-charm strong {
+  display: block;
   font-size: 10px;
-  font-weight: 800;
-}
-
-.capy-charm-meter {
-  position: absolute;
-  z-index: 4;
-  left: 50%;
-  top: 13%;
-  width: min(330px, calc(100vw - 72px));
-  transform: translateX(-50%);
-}
-
-.capy-charm-meter > span {
-  font-size: 11px;
   font-weight: 900;
-  letter-spacing: 0.1em;
 }
 
-.capy-charm-meter > div {
-  height: 17px;
-  margin: 6px 0 3px;
+.capy-map-charm > span {
+  display: block;
+  height: 10px;
+  margin: 5px 0 3px;
   overflow: hidden;
-  border: 2px solid #fff0d5;
+  border: 1px solid #fff2db;
   border-radius: 20px;
-  background: #3a2631b8;
-  box-shadow: 0 5px 18px #34172266;
+  background: #180d14;
 }
 
-.capy-charm-meter i {
+.capy-map-charm > span i {
   display: block;
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #f29c81, #ff6685, #ffc763);
-  box-shadow: 0 0 18px #ff7187;
+  box-shadow: 0 0 12px #ff7187;
   transition: width 700ms cubic-bezier(0.2, 0.9, 0.2, 1.2);
 }
 
-.capy-charm-meter strong {
-  color: #ffd5c9;
-  font-size: 12px;
+.capy-map-charm button {
+  margin-top: 5px;
+  padding: 3px 7px;
+  border: 0;
+  background: transparent;
+  color: #d8bbb7;
+  font-size: 9px;
+  font-weight: 800;
 }
 
-.capy-charm-hearts {
+.capy-bar-dialogue {
   position: absolute;
-  z-index: 3;
-  inset: 20% 18%;
-  pointer-events: none;
+  z-index: 22;
+  right: max(24px, env(safe-area-inset-right));
+  bottom: 104px;
+  width: min(390px, calc(100vw - 48px));
+  padding: 17px 18px;
+  border: 1px solid #ffc9ad8f;
+  border-radius: 22px;
+  background: #2a151ded;
+  box-shadow: 0 18px 55px #1908119c;
+  color: #fff2e5;
+  backdrop-filter: blur(15px);
 }
 
-.capy-charm-hearts span {
-  position: absolute;
-  color: #ff8c9f;
-  font-size: clamp(20px, 4vw, 54px);
-  opacity: 0;
-  animation: capy-heart-pop 1.8s ease-out infinite;
+.capy-bar-dialogue small {
+  color: #f19b87;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
 }
 
-.capy-charm-hearts span:nth-child(1) {
-  left: 13%;
-  top: 38%;
+.capy-bar-dialogue strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 19px;
 }
-.capy-charm-hearts span:nth-child(2) {
-  right: 16%;
-  top: 18%;
-  animation-delay: 0.35s;
+
+.capy-bar-dialogue p {
+  min-height: 43px;
+  margin: 6px 0 12px;
+  color: #f3d7cf;
+  font-size: 13px;
+  line-height: 1.55;
 }
-.capy-charm-hearts span:nth-child(3) {
-  right: 10%;
-  bottom: 20%;
-  animation-delay: 0.7s;
+
+.capy-bar-dialogue > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
 }
-.capy-charm-hearts span:nth-child(4) {
-  left: 18%;
-  top: 5%;
-  animation-delay: 1.05s;
+
+.capy-bar-dialogue button {
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #ffd0b6a6;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #d64f59, #8b294c);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.capy-bar-dialogue button.is-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: #c6aaa6;
+}
+
+.capy-bar-dialogue b {
+  color: #ffc7ad;
+  font-size: 11px;
 }
 
 .capy-bubble {
@@ -1253,15 +1318,15 @@
   }
 }
 
-@keyframes capy-charm-performance {
+@keyframes capy-map-wriggle {
   0% {
-    transform: translate(-50%, -48%) rotate(-3deg) scale(1.03, 0.94);
+    transform: translateY(3px) rotate(-4deg) scale(1.08, 0.88);
   }
   48% {
-    transform: translate(-50%, -53%) rotate(2deg) scale(0.95, 1.06);
+    transform: translateY(-4px) rotate(2deg) scale(0.93, 1.08);
   }
   100% {
-    transform: translate(-50%, -49%) rotate(4deg) scale(1.04, 0.93);
+    transform: translateY(1px) rotate(5deg) scale(1.07, 0.9);
   }
 }
 
@@ -1437,7 +1502,7 @@
   }
   .capy-plaza.is-club .capy-neighbor img,
   .capy-plaza.is-club .capy-player img {
-    width: clamp(142px, 40vw, 190px);
+    width: clamp(88px, 24vw, 122px);
   }
   .capy-neighbor-one {
     left: 37%;
@@ -1451,7 +1516,7 @@
     top: 63%;
   }
   .capy-guard img {
-    width: clamp(118px, 33vw, 158px);
+    width: clamp(78px, 22vw, 108px);
   }
   .capy-guard-dialogue {
     grid-template-columns: 92px minmax(0, 1fr);
@@ -1475,25 +1540,25 @@
     padding: 7px 10px;
     font-size: 11px;
   }
-  .capy-charm-cutscene > img {
-    top: 48%;
-    width: min(92vw, 470px);
-  }
-  .capy-charm-cutscene > p {
-    bottom: 15%;
-    max-width: calc(100vw - 32px);
-    overflow: hidden;
-    font-size: 11px;
-    text-overflow: ellipsis;
-  }
-  .capy-charm-cutscene > button {
-    right: 12px;
-    bottom: 12px;
+  .capy-map-charm {
+    width: 158px;
+    bottom: calc(100% + 32px);
   }
   .capy-dj {
     top: 34%;
     width: clamp(118px, 31vw, 160px);
     height: clamp(108px, 29vw, 150px);
+  }
+  .capy-bartender {
+    left: 63%;
+    top: 45%;
+    width: clamp(115px, 34vw, 165px);
+  }
+  .capy-bar-dialogue {
+    right: 14px;
+    bottom: 84px;
+    width: calc(100vw - 28px);
+    padding: 13px 14px;
   }
   .capy-club-dancer-one {
     z-index: 70;
@@ -1568,8 +1633,10 @@
   .capy-club-dancer-one img,
   .capy-club-dancer-two img,
   .capy-dj img,
-  .capy-charm-cutscene > img,
-  .capy-charm-hearts span {
+  .capy-bartender img,
+  .capy-player.is-charming img,
+  .capy-player.is-bar-wriggling img,
+  .capy-map-charm > div i {
     animation: none;
   }
 }
