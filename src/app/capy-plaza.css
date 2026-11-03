@@ -305,8 +305,10 @@
   left: 0;
   width: 100%;
   height: 100dvh;
-  background: url("/capy-world/real-3d/sunset-sky.webp") center / cover
-    no-repeat;
+  background:
+    linear-gradient(180deg, #708ec500 28%, #f4a68224 62%, #61406c38 100%),
+    url("/capy-world/real-3d/sunset-sky.webp") center / cover no-repeat;
+  filter: saturate(1.12) contrast(1.03);
   pointer-events: none;
 }
 

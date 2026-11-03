@@ -1,7 +1,7 @@
 "use client";
 
 import { Canvas, ThreeEvent, useFrame, useThree } from "@react-three/fiber";
-import { Html, OrbitControls, useTexture } from "@react-three/drei";
+import { Html, OrbitControls, Sparkles, useTexture } from "@react-three/drei";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -99,9 +99,9 @@ function Ocean({ reducedMotion }: { reducedMotion: boolean }) {
           varying vec3 vNormalWorld;
           void main() {
             vec3 p = position;
-            p.z += sin(p.x * 0.41 + uTime * 0.75) * 0.09;
-            p.z += sin(p.y * 0.32 - uTime * 0.56 + p.x * 0.15) * 0.07;
-            p.z += sin((p.x + p.y) * 0.76 + uTime * 1.1) * 0.025;
+            p.z += sin(p.x * 0.41 + uTime * 0.75) * 0.11;
+            p.z += sin(p.y * 0.32 - uTime * 0.56 + p.x * 0.15) * 0.08;
+            p.z += sin((p.x + p.y) * 0.76 + uTime * 1.1) * 0.035;
             vec4 world = modelMatrix * vec4(p, 1.0);
             vWorld = world.xyz;
             vNormalWorld = normalize(mat3(modelMatrix) * vec3(0.0, 0.0, 1.0));
@@ -120,13 +120,19 @@ function Ocean({ reducedMotion }: { reducedMotion: boolean }) {
             vec3 n = normalize(vNormalWorld + vec3(wave * 0.09 + small, 0.0, small * 0.8));
             float fresnel = pow(1.0 - max(dot(n, viewDir), 0.0), 2.8);
             float distanceFade = smoothstep(20.0, 130.0, length(vWorld.xz));
-            vec3 nearSea = mix(vec3(0.02, 0.30, 0.38), vec3(0.06, 0.40, 0.48), 0.5 + 0.5 * wave);
-            vec3 sea = mix(nearSea, vec3(0.035, 0.23, 0.31), distanceFade);
-            sea += vec3(0.08, 0.11, 0.10) * fresnel;
+            float radius = length(vWorld.xz);
+            vec3 nearSea = mix(vec3(0.025, 0.36, 0.43), vec3(0.08, 0.53, 0.57), 0.5 + 0.5 * wave);
+            vec3 sea = mix(nearSea, vec3(0.035, 0.21, 0.31), distanceFade);
+            sea += vec3(0.11, 0.16, 0.14) * fresnel;
+            float shallows = 1.0 - smoothstep(18.0, 26.0, radius);
+            sea = mix(sea, vec3(0.08, 0.48, 0.49), shallows * 0.34);
             vec3 sunDir = normalize(vec3(-0.16, 0.28, -0.95));
             float glint = pow(max(dot(reflect(-sunDir, n), viewDir), 0.0), 34.0);
             float glitter = pow(max(0.0, sin(vWorld.x * 3.2 + vWorld.z * 4.7 + uTime * 2.1)), 20.0);
-            sea += vec3(1.0, 0.58, 0.25) * (glint * 0.42 + glitter * glint * 0.19);
+            sea += vec3(1.0, 0.55, 0.25) * (glint * 0.5 + glitter * glint * 0.22);
+            float shore = 1.0 - smoothstep(0.0, 0.75, abs(radius - 17.65));
+            float brokenFoam = smoothstep(-0.15, 0.75, sin(atan(vWorld.z, vWorld.x) * 18.0 + uTime * 1.25 + wave * 2.0));
+            sea = mix(sea, vec3(0.82, 0.95, 0.88), shore * brokenFoam * 0.38);
             float haze = smoothstep(70.0, 300.0, length(vWorld.xz));
             sea = mix(sea, vec3(0.28, 0.39, 0.45), haze * 0.45);
             gl_FragColor = vec4(sea, 1.0);
@@ -170,6 +176,27 @@ function Island({
           color="#fff0db"
         />
       </mesh>
+      {[
+        [-10.8, 0.16, -2.5, 7.2, 0.34, 8.4],
+        [10.4, 0.14, -5.0, 6.4, 0.3, 7.9],
+        [-9.2, 0.1, 8.0, 7.5, 0.22, 5.5],
+        [9.8, 0.08, 8.8, 7.3, 0.2, 5.0],
+      ].map(([x, y, z, sx, sy, sz], index) => (
+        <mesh
+          key={index}
+          position={[x, groundY + y, z]}
+          scale={[sx, sy, sz]}
+          castShadow
+          receiveShadow
+          onClick={clickGround}
+        >
+          <sphereGeometry args={[1, 40, 20]} />
+          <meshStandardMaterial
+            color={index % 2 ? "#6f8c54" : "#78935a"}
+            roughness={1}
+          />
+        </mesh>
+      ))}
       <mesh
         position={[0, groundY + 0.016, -4.4]}
         rotation={[-Math.PI / 2, 0, 0]}
@@ -211,35 +238,297 @@ function Palm({
   position: [number, number, number];
   scale?: number;
 }) {
-  const texture = useTexture(`${asset}/palm.webp`);
-  const plane = useRef<THREE.Mesh>(null);
-  const { camera } = useThree();
-  useEffect(() => {
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.needsUpdate = true;
-  }, [texture]);
-  useFrame(() => {
-    if (plane.current)
-      plane.current.rotation.y = Math.atan2(
-        camera.position.x - position[0],
-        camera.position.z - position[2],
-      );
+  const crown = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    if (crown.current)
+      crown.current.rotation.z =
+        Math.sin(clock.elapsedTime * 0.42 + position[0]) * 0.025;
   });
   return (
-    <mesh
-      ref={plane}
-      position={[position[0], position[1] + 4.25 * scale, position[2]]}
-      scale={scale}
-    >
-      <planeGeometry args={[6.6, 8.5]} />
-      <meshBasicMaterial
-        map={texture}
-        transparent
-        alphaTest={0.035}
-        side={THREE.DoubleSide}
-        depthWrite={false}
-      />
-    </mesh>
+    <group position={position} scale={scale}>
+      {[0, 1, 2, 3].map((segment) => (
+        <mesh
+          key={segment}
+          position={[segment * 0.09, 0.8 + segment * 1.35, segment * 0.025]}
+          rotation={[0.015, 0, -0.065]}
+          castShadow
+        >
+          <cylinderGeometry
+            args={[0.25 - segment * 0.025, 0.33 - segment * 0.02, 1.52, 9]}
+          />
+          <meshStandardMaterial
+            color={segment % 2 ? "#8f6745" : "#a77a50"}
+            roughness={0.96}
+          />
+        </mesh>
+      ))}
+      <group ref={crown} position={[0.38, 5.95, 0.08]}>
+        {Array.from({ length: 11 }, (_, index) => {
+          const angle = (index / 11) * Math.PI * 2;
+          return (
+            <mesh
+              key={index}
+              position={[Math.cos(angle) * 1.35, -0.12, Math.sin(angle) * 1.35]}
+              rotation={[index % 2 ? -0.38 : -0.18, -angle, Math.PI / 2.7]}
+              scale={[2.5, 0.18, 0.62]}
+              castShadow
+            >
+              <sphereGeometry args={[1, 12, 5]} />
+              <meshStandardMaterial
+                color={index % 3 ? "#54764b" : "#6c8b50"}
+                roughness={0.92}
+              />
+            </mesh>
+          );
+        })}
+        <mesh castShadow>
+          <icosahedronGeometry args={[0.72, 1]} />
+          <meshStandardMaterial color="#486a43" roughness={1} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+function OliveTree({
+  position,
+  scale = 1,
+}: {
+  position: [number, number, number];
+  scale?: number;
+}) {
+  return (
+    <group position={position} scale={scale}>
+      <mesh position={[0, 1.15, 0]} rotation={[0.05, 0, -0.08]} castShadow>
+        <cylinderGeometry args={[0.18, 0.34, 2.4, 8]} />
+        <meshStandardMaterial color="#75604a" roughness={1} />
+      </mesh>
+      {[
+        [-0.5, 2.35, 0.05, 0.95],
+        [0.42, 2.45, 0.08, 1.05],
+        [0, 2.9, -0.18, 1.12],
+        [-0.12, 2.5, 0.56, 0.82],
+      ].map(([x, y, z, s], index) => (
+        <mesh
+          key={index}
+          position={[x, y, z]}
+          scale={[s * 1.15, s, s]}
+          castShadow
+        >
+          <icosahedronGeometry args={[0.9, 2]} />
+          <meshStandardMaterial
+            color={index % 2 ? "#66805b" : "#788c63"}
+            roughness={0.98}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function Meadow({ reducedMotion }: { reducedMotion: boolean }) {
+  const grass = useRef<THREE.InstancedMesh>(null);
+  const flowers = useRef<THREE.InstancedMesh>(null);
+  const meadow = useRef<THREE.Group>(null);
+  const placements = useMemo(() => {
+    let seed = 9173;
+    const random = () =>
+      ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+    const points: Array<{
+      x: number;
+      z: number;
+      scale: number;
+      flower: boolean;
+    }> = [];
+    while (points.length < 240) {
+      const angle = random() * Math.PI * 2;
+      const radius = 5.4 + Math.sqrt(random()) * 10.3;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      if (Math.abs(x) < 2.7 && z > -14 && z < 4.8) continue;
+      if (x > -7 && x < 7 && z < -6) continue;
+      points.push({
+        x,
+        z,
+        scale: 0.45 + random() * 0.8,
+        flower: random() > 0.84,
+      });
+    }
+    return points;
+  }, []);
+  useEffect(() => {
+    const dummy = new THREE.Object3D();
+    let flowerIndex = 0;
+    placements.forEach((point, index) => {
+      dummy.position.set(point.x, groundY + 0.28 * point.scale, point.z);
+      dummy.rotation.set(0, index * 2.17, ((index % 5) - 2) * 0.035);
+      dummy.scale.set(point.scale, point.scale, point.scale);
+      dummy.updateMatrix();
+      grass.current?.setMatrixAt(index, dummy.matrix);
+      if (point.flower && flowers.current) {
+        dummy.position.y += 0.28 * point.scale;
+        dummy.scale.setScalar(point.scale * 0.42);
+        dummy.updateMatrix();
+        flowers.current.setMatrixAt(flowerIndex, dummy.matrix);
+        flowerIndex++;
+      }
+    });
+    if (grass.current) {
+      grass.current.instanceMatrix.needsUpdate = true;
+    }
+    if (flowers.current) {
+      flowers.current.count = flowerIndex;
+      flowers.current.instanceMatrix.needsUpdate = true;
+    }
+  }, [placements]);
+  useFrame(({ clock }) => {
+    if (meadow.current && !reducedMotion)
+      meadow.current.rotation.z = Math.sin(clock.elapsedTime * 0.55) * 0.0025;
+  });
+  return (
+    <group ref={meadow}>
+      <instancedMesh
+        ref={grass}
+        args={[undefined, undefined, placements.length]}
+        receiveShadow
+      >
+        <coneGeometry args={[0.1, 0.46, 5]} />
+        <meshStandardMaterial
+          color="#5f824c"
+          emissive="#263c20"
+          emissiveIntensity={0.14}
+          roughness={1}
+        />
+      </instancedMesh>
+      <instancedMesh ref={flowers} args={[undefined, undefined, 48]} castShadow>
+        <icosahedronGeometry args={[0.19, 1]} />
+        <meshStandardMaterial
+          color="#f0b9c4"
+          emissive="#67343f"
+          emissiveIntensity={0.12}
+          roughness={0.8}
+        />
+      </instancedMesh>
+    </group>
+  );
+}
+
+function CoastalShrubs() {
+  const shrubs = useMemo(
+    () =>
+      [
+        [-14.5, -4.8, 1.2],
+        [-13.2, -1.8, 0.9],
+        [-12.7, 5.7, 1.1],
+        [-10.5, 11.8, 1.0],
+        [-6.8, 13.9, 0.78],
+        [7.5, 13.2, 0.9],
+        [11.9, 9.6, 1.12],
+        [14.1, 5.2, 0.88],
+        [14.4, -4.5, 1.1],
+        [10.2, -8.1, 0.76],
+      ] as const,
+    [],
+  );
+  return (
+    <group>
+      {shrubs.map(([x, z, scale], index) => (
+        <group key={index} position={[x, groundY + 0.35, z]} scale={scale}>
+          {[
+            [-0.5, 0, 0.05, 0.72],
+            [0.25, 0.15, -0.18, 0.88],
+            [0.7, -0.02, 0.24, 0.6],
+          ].map(([bx, by, bz, bs], leaf) => (
+            <mesh
+              key={leaf}
+              position={[bx, by, bz]}
+              scale={[bs * 1.3, bs, bs]}
+              castShadow
+            >
+              <icosahedronGeometry args={[0.8, 1]} />
+              <meshStandardMaterial
+                color={leaf % 2 ? "#668052" : "#77905c"}
+                roughness={1}
+              />
+            </mesh>
+          ))}
+          {index % 2 === 0 &&
+            Array.from({ length: 5 }, (_, flower) => (
+              <mesh
+                key={`flower-${flower}`}
+                position={[
+                  -0.55 + flower * 0.28,
+                  0.65 + (flower % 2) * 0.18,
+                  0.45,
+                ]}
+              >
+                <sphereGeometry args={[0.1, 8, 6]} />
+                <meshStandardMaterial
+                  color={flower % 2 ? "#f5c1c9" : "#f1d27f"}
+                  roughness={0.78}
+                />
+              </mesh>
+            ))}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function ClubGarden() {
+  return (
+    <group position={[0, groundY, -7.15]}>
+      {[-1, 1].map((side) => (
+        <group key={side} position={[side * 5.15, 0, 0.15]}>
+          <mesh position={[0, 0.38, 0]} castShadow>
+            <cylinderGeometry args={[0.52, 0.38, 0.72, 12]} />
+            <meshStandardMaterial color="#b96545" roughness={0.92} />
+          </mesh>
+          <mesh position={[0, 1.0, 0]} scale={[0.9, 0.75, 0.9]} castShadow>
+            <icosahedronGeometry args={[0.85, 2]} />
+            <meshStandardMaterial color="#537747" roughness={1} />
+          </mesh>
+          {Array.from({ length: 7 }, (_, i) => (
+            <mesh
+              key={i}
+              position={[
+                Math.cos(i * 2.4) * 0.62,
+                1.1 + (i % 3) * 0.18,
+                Math.sin(i * 2.4) * 0.52,
+              ]}
+            >
+              <sphereGeometry args={[0.12, 8, 6]} />
+              <meshStandardMaterial
+                color={i % 2 ? "#f2a4b5" : "#f4d077"}
+                roughness={0.75}
+              />
+            </mesh>
+          ))}
+        </group>
+      ))}
+      {[-1, 1].map((side) => (
+        <group key={`lamp-${side}`} position={[side * 3.85, 0, 1.15]}>
+          <mesh position={[0, 1.05, 0]} castShadow>
+            <cylinderGeometry args={[0.055, 0.08, 2.1, 8]} />
+            <meshStandardMaterial color="#493d3b" roughness={0.8} />
+          </mesh>
+          <mesh position={[0, 2.15, 0]} castShadow>
+            <cylinderGeometry args={[0.28, 0.2, 0.5, 8]} />
+            <meshStandardMaterial
+              color="#ffd28a"
+              emissive="#ff9c55"
+              emissiveIntensity={2.2}
+            />
+          </mesh>
+          <pointLight
+            position={[0, 2.1, 0]}
+            color="#ffad72"
+            intensity={1.3}
+            distance={4.5}
+          />
+        </group>
+      ))}
+    </group>
   );
 }
 
@@ -260,19 +549,28 @@ function Rocks() {
   return (
     <group>
       {stones.map((rock, index) => (
-        <mesh
-          key={index}
-          position={[rock.x, groundY + rock.s * 0.25, rock.z]}
-          scale={[rock.s * 1.4, rock.s * 0.65, rock.s]}
-          castShadow
-          receiveShadow
-        >
-          <dodecahedronGeometry args={[1, 1]} />
-          <meshStandardMaterial
-            color={index % 3 ? "#90887d" : "#b5aa98"}
-            roughness={1}
-          />
-        </mesh>
+        <group key={index} position={[rock.x, groundY + rock.s * 0.25, rock.z]}>
+          <mesh
+            scale={[rock.s * 1.4, rock.s * 0.65, rock.s]}
+            castShadow
+            receiveShadow
+          >
+            <dodecahedronGeometry args={[1, 1]} />
+            <meshStandardMaterial
+              color={index % 3 ? "#817b71" : "#a9a08f"}
+              roughness={1}
+            />
+          </mesh>
+          {index % 3 === 0 && (
+            <mesh
+              position={[0, rock.s * 0.5, 0]}
+              scale={[rock.s * 0.8, rock.s * 0.16, rock.s * 0.62]}
+            >
+              <sphereGeometry args={[1, 12, 6]} />
+              <meshStandardMaterial color="#617356" roughness={1} />
+            </mesh>
+          )}
+        </group>
       ))}
     </group>
   );
@@ -762,13 +1060,13 @@ function VillageContents(props: Props) {
   };
   return (
     <>
-      <fog attach="fog" args={["#bba3a0", 58, 210]} />
-      <hemisphereLight args={["#d5eaff", "#9c755f", 2.1]} />
-      <ambientLight intensity={0.38} />
+      <fog attach="fog" args={["#b78e91", 64, 220]} />
+      <hemisphereLight args={["#cce8ff", "#6f5b4e", 1.65]} />
+      <ambientLight intensity={0.26} />
       <directionalLight
-        position={[-20, 14, -30]}
-        intensity={2.6}
-        color="#ffd6a0"
+        position={[-24, 9, -34]}
+        intensity={3.2}
+        color="#ffc17f"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -780,11 +1078,28 @@ function VillageContents(props: Props) {
       <Ocean reducedMotion={props.reducedMotion} />
       <Island onMoveTo={props.onMoveTo} maps={maps} />
       <Rocks />
-      <Palm position={[-13.6, groundY, -10.0]} scale={1.15} />
-      <Palm position={[12.8, groundY, -11.8]} scale={1.05} />
+      <Meadow reducedMotion={props.reducedMotion} />
+      <CoastalShrubs />
+      <Palm position={[-13.8, groundY, -9.3]} scale={1.08} />
+      <Palm position={[13.2, groundY, -10.5]} scale={1.02} />
+      <Palm position={[14.6, groundY, 7.2]} scale={0.78} />
+      <OliveTree position={[-13.2, groundY, 1.7]} scale={1.18} />
+      <OliveTree position={[11.7, groundY, 1.4]} scale={0.96} />
+      <OliveTree position={[-10.2, groundY, 10.8]} scale={0.88} />
+      <ClubGarden />
       <House club maps={maps} onEnterClub={props.onEnterClub} />
       <House maps={maps} onEnterClub={props.onEnterClub} />
       <Pier maps={maps} />
+      <Sparkles
+        count={props.reducedMotion ? 22 : 54}
+        scale={[30, 8, 24]}
+        position={[0, 3.5, 0]}
+        size={1.35}
+        speed={props.reducedMotion ? 0 : 0.18}
+        opacity={0.32}
+        color="#ffd69b"
+        noise={1}
+      />
       <Avatar
         actor={{ id: "guard", name: "가드 모카", look: "guard", x: 59, y: 56 }}
         frame={0}
@@ -826,6 +1141,8 @@ export default function CapyVillage3D(props: Props) {
           alpha: true,
           antialias: true,
           powerPreference: "high-performance",
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.08,
         }}
       >
         <Suspense fallback={null}>
