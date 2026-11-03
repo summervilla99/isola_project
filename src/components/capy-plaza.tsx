@@ -819,7 +819,7 @@ export default function CapyPlaza({
   }, [islandId, userId, userName, demo]);
 
   useEffect(() => {
-    if (!supabase || !demo || guest) return;
+    if (!supabase || guest) return;
     const client = supabase;
     const presenceId = presenceIdRef.current;
     const room = client.channel("capy-public:plaza", {
@@ -1004,7 +1004,7 @@ export default function CapyPlaza({
       setConnectionTimedOut(false);
       setNeighbors([]);
     };
-  }, [demo, guest, presenceName]);
+  }, [guest, presenceName]);
 
   useEffect(() => {
     if (connected)
