@@ -23,6 +23,8 @@ type Neighbor = Position & {
   zone: Zone;
   bubble?: string;
   dancing?: boolean;
+  facing?: number;
+  walking?: boolean;
 };
 type PlazaProps = {
   islandId?: string;
@@ -49,6 +51,40 @@ const START = { x: 51, y: 76 };
 const CLUB_START = { x: 50, y: 78 };
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
+const walkingFrames = [
+  "front-0",
+  "front-1",
+  "side-0",
+  "side-1",
+  "back-0",
+  "back-1",
+];
+
+function walkablePoint(point: Position, zone: Zone): Position {
+  const club = zone === "club";
+  const y = clamp(point.y, club ? 51 : 48, 88);
+  const narrowEntrance = club ? y < 58 : y < 59;
+  return {
+    x: clamp(
+      point.x,
+      narrowEntrance ? (club ? 35 : 41) : club ? 22 : 27,
+      narrowEntrance ? (club ? 66 : 59) : club ? 78 : 74,
+    ),
+    y,
+  };
+}
+
+function walkingSprite(facing = 0, frame = 0) {
+  const side = Math.abs(Math.sin(facing)) > Math.abs(Math.cos(facing)) * 0.7;
+  if (side)
+    return {
+      src: `/capy-world/walk/side-${frame}.webp`,
+      flip: Math.sin(facing) < 0,
+    };
+  if (Math.cos(facing) < 0)
+    return { src: `/capy-world/walk/back-${frame}.webp`, flip: false };
+  return { src: `/capy-world/walk/front-${frame}.webp`, flip: false };
+}
 
 export default function CapyPlaza({
   islandId,
@@ -74,8 +110,16 @@ export default function CapyPlaza({
   const player = useRef<Position>(START);
   const destination = useRef<Position>(START);
   const heldKeys = useRef(new Set<string>());
+  const padDirection = useRef<Position | null>(null);
+  const moveSpeed = useRef(0);
   const [position, setPosition] = useState<Position>(START);
   const [walking, setWalking] = useState(false);
+  const [facing, setFacing] = useState(0);
+  const facingRef = useRef(0);
+  const [walkFrame, setWalkFrame] = useState(0);
+  const lastWalkFrame = useRef(0);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const reducedMotionRef = useRef(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [bubble, setBubble] = useState("");
   const [zone, setZone] = useState<Zone>("village");
@@ -84,6 +128,9 @@ export default function CapyPlaza({
   const zoneRef = useRef<Zone>("village");
   const audioContext = useRef<AudioContext | null>(null);
   const [neighbors, setNeighbors] = useState<Neighbor[]>([]);
+  const [remoteFrame, setRemoteFrame] = useState(0);
+  const anyNeighborWalking = neighbors.some((neighbor) => neighbor.walking);
+  const remoteIdleTimers = useRef(new Map<string, number>());
   const [connected, setConnected] = useState(false);
   const channel = useRef<ReturnType<
     NonNullable<typeof supabase>["channel"]
@@ -92,12 +139,26 @@ export default function CapyPlaza({
   const knownNamesRef = useRef(knownNames);
   knownNamesRef.current = knownNames;
 
-  const walkTo = useCallback((point: Position) => {
-    const club = zoneRef.current === "club";
-    destination.current = {
-      x: clamp(point.x, club ? 22 : 27, club ? 78 : 74),
-      y: clamp(point.y, club ? 51 : 48, 88),
+  useEffect(() => {
+    for (const frame of walkingFrames) {
+      const image = new Image();
+      image.src = `/capy-world/walk/${frame}.webp`;
+    }
+  }, []);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => {
+      reducedMotionRef.current = query.matches;
+      setReducedMotion(query.matches);
     };
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+
+  const walkTo = useCallback((point: Position) => {
+    destination.current = walkablePoint(point, zoneRef.current);
     setWalking(true);
   }, []);
 
@@ -116,10 +177,25 @@ export default function CapyPlaza({
       setNeighbors([]);
       setBubble("");
       setDancing(false);
+      facingRef.current = 0;
+      setFacing(0);
+      moveSpeed.current = 0;
       if (next === "village") setMusicOn(false);
     },
     [guest, onExplore],
   );
+
+  useEffect(() => {
+    if (
+      !guest &&
+      zone === "village" &&
+      position.y <= 49 &&
+      position.x >= 44 &&
+      position.x <= 56
+    ) {
+      changeZone("club");
+    }
+  }, [position, zone, guest, changeZone]);
 
   useEffect(() => {
     let frame = 0;
@@ -130,26 +206,38 @@ export default function CapyPlaza({
       const keys = heldKeys.current;
       const dx =
         Number(keys.has("ArrowRight") || keys.has("d")) -
-        Number(keys.has("ArrowLeft") || keys.has("a"));
+        Number(keys.has("ArrowLeft") || keys.has("a")) +
+        (padDirection.current?.x ?? 0);
       const dy =
         Number(keys.has("ArrowDown") || keys.has("s")) -
-        Number(keys.has("ArrowUp") || keys.has("w"));
+        Number(keys.has("ArrowUp") || keys.has("w")) +
+        (padDirection.current?.y ?? 0);
       if (dx || dy) {
-        const club = zoneRef.current === "club";
-        destination.current = {
-          x: clamp(
-            player.current.x + dx * dt * 24,
-            club ? 22 : 27,
-            club ? 78 : 74,
-          ),
-          y: clamp(player.current.y + dy * dt * 24, club ? 51 : 48, 88),
-        };
+        destination.current = walkablePoint(
+          {
+            x: player.current.x + dx * dt * 24,
+            y: player.current.y + dy * dt * 24,
+          },
+          zoneRef.current,
+        );
       }
       const distanceX = destination.current.x - player.current.x;
       const distanceY = destination.current.y - player.current.y;
       const distance = Math.hypot(distanceX, distanceY);
       if (distance > 0.15) {
-        const step = Math.min(distance, dt * 19);
+        const angle = Math.atan2(distanceX, distanceY);
+        if (Math.abs(angle - facingRef.current) > 0.08) {
+          facingRef.current = angle;
+          setFacing(angle);
+        }
+        if (!reducedMotionRef.current && now - lastWalkFrame.current > 150) {
+          lastWalkFrame.current = now;
+          setWalkFrame((frame) => 1 - frame);
+        }
+        const targetSpeed = Math.min(19, distance * 42);
+        moveSpeed.current +=
+          (targetSpeed - moveSpeed.current) * Math.min(1, dt * 10);
+        const step = Math.min(distance, dt * moveSpeed.current);
         player.current = {
           x: player.current.x + (distanceX / distance) * step,
           y: player.current.y + (distanceY / distance) * step,
@@ -157,6 +245,7 @@ export default function CapyPlaza({
         setPosition({ ...player.current });
         setWalking(true);
       } else {
+        moveSpeed.current = 0;
         setWalking(false);
       }
       frame = requestAnimationFrame(tick);
@@ -192,6 +281,15 @@ export default function CapyPlaza({
       window.removeEventListener("keyup", up);
     };
   }, []);
+
+  useEffect(() => {
+    if (!anyNeighborWalking || reducedMotion) return;
+    const timer = window.setInterval(
+      () => setRemoteFrame((frame) => 1 - frame),
+      150,
+    );
+    return () => window.clearInterval(timer);
+  }, [anyNeighborWalking, reducedMotion]);
 
   useEffect(() => {
     if (!bubble) return;
@@ -255,6 +353,7 @@ export default function CapyPlaza({
               peer.zone === "club" ? 78 : 74,
             ),
             y: clamp(peer.y, peer.zone === "club" ? 51 : 48, 88),
+            facing: peer.facing ?? 0,
           })),
       );
     };
@@ -282,10 +381,23 @@ export default function CapyPlaza({
                     peer.zone === "club" ? 78 : 74,
                   ),
                   y: clamp(peer.y, peer.zone === "club" ? 51 : 48, 88),
+                  facing: peer.facing ?? item.facing,
+                  walking: true,
                 }
               : item,
           ),
         );
+        const previousTimer = remoteIdleTimers.current.get(peer.id);
+        if (previousTimer) window.clearTimeout(previousTimer);
+        const timer = window.setTimeout(() => {
+          setNeighbors((current) =>
+            current.map((item) =>
+              item.id === peer.id ? { ...item, walking: false } : item,
+            ),
+          );
+          remoteIdleTimers.current.delete(peer.id);
+        }, 260);
+        remoteIdleTimers.current.set(peer.id, timer);
       })
       .on("broadcast", { event: "gesture" }, ({ payload }) => {
         const peer = payload as Neighbor;
@@ -329,6 +441,7 @@ export default function CapyPlaza({
             name: userName ?? "카피바라",
             zone: zoneRef.current,
             ...player.current,
+            facing: facingRef.current,
           });
         } else if (
           status === "CHANNEL_ERROR" ||
@@ -346,10 +459,14 @@ export default function CapyPlaza({
           name: userName ?? "카피바라",
           zone: zoneRef.current,
           ...player.current,
+          facing: facingRef.current,
         });
     }, 5000);
     return () => {
       window.clearInterval(refresh);
+      for (const timer of remoteIdleTimers.current.values())
+        window.clearTimeout(timer);
+      remoteIdleTimers.current.clear();
       channel.current = null;
       void client.removeChannel(room);
     };
@@ -362,6 +479,7 @@ export default function CapyPlaza({
         name: userName ?? "카피바라",
         zone,
         ...player.current,
+        facing: facingRef.current,
       });
   }, [zone, connected, userId, userName]);
 
@@ -376,9 +494,9 @@ export default function CapyPlaza({
     void channel.current.send({
       type: "broadcast",
       event: "walk",
-      payload: { id: userId, zone, ...position },
+      payload: { id: userId, zone, ...position, facing },
     });
-  }, [position, connected, userId, zone]);
+  }, [position, facing, connected, userId, zone]);
 
   const gesture = (message: string, dance = false) => {
     setBubble(message);
@@ -409,13 +527,42 @@ export default function CapyPlaza({
     });
   };
 
+  const holdDirection = (
+    event: React.PointerEvent<HTMLButtonElement>,
+    direction: Position,
+  ) => {
+    event.preventDefault();
+    padDirection.current = direction;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const releaseDirection = () => {
+    padDirection.current = null;
+  };
+
+  const cameraFocus = zone === "club" ? CLUB_START : START;
+  const cameraX = reducedMotion
+    ? 0
+    : clamp((cameraFocus.x - position.x) * 0.65, -20, 20);
+  const cameraY = reducedMotion
+    ? 0
+    : clamp((cameraFocus.y - position.y) * 0.45, -12, 12);
+
   return (
     <section
       className={`capy-plaza ${guest ? "is-guest" : ""} is-${zone}`}
       aria-label={zone === "club" ? "카피바라 클럽" : "카피바라 마을 광장"}
     >
-      <div ref={map} className="capy-map" onClick={handleMapClick}>
+      <div
+        ref={map}
+        className="capy-map"
+        style={{
+          transform: `translate(calc(-50% + ${cameraX}px), calc(-50% + ${cameraY}px)) scale(1.03)`,
+        }}
+        onClick={handleMapClick}
+      >
         <div className="capy-sky-glow" />
+        <div className="capy-atmosphere" aria-hidden="true" />
         {zone === "village" ? (
           <>
             <div className="capy-club-sign" aria-hidden="true">
@@ -463,7 +610,11 @@ export default function CapyPlaza({
         {!guest && (
           <div
             className={`capy-player ${walking ? "is-walking" : ""} ${dancing ? "is-dancing" : ""}`}
-            style={{ left: `${position.x}%`, top: `${position.y}%` }}
+            style={{
+              left: `${position.x}%`,
+              top: `${position.y}%`,
+              zIndex: Math.round(position.y),
+            }}
             aria-label="내 카피바라"
           >
             {bubble && <span className="capy-bubble">{bubble}</span>}
@@ -471,8 +622,9 @@ export default function CapyPlaza({
               src={
                 playerLook === "bun"
                   ? "/capy-world/capy-neighbor-v1.webp"
-                  : "/capy-world/capy-hero-v1.webp"
+                  : walkingSprite(facing, walking ? walkFrame : 0).src
               }
+              style={{ scale: walkingSprite(facing).flip ? "-1 1" : undefined }}
               alt=""
               draggable={false}
             />
@@ -483,7 +635,11 @@ export default function CapyPlaza({
           <div
             key={neighbor.id}
             className={`capy-player capy-remote ${neighbor.dancing ? "is-dancing" : ""}`}
-            style={{ left: `${neighbor.x}%`, top: `${neighbor.y}%` }}
+            style={{
+              left: `${neighbor.x}%`,
+              top: `${neighbor.y}%`,
+              zIndex: Math.round(neighbor.y),
+            }}
           >
             {neighbor.bubble && (
               <span className="capy-bubble">{neighbor.bubble}</span>
@@ -492,8 +648,14 @@ export default function CapyPlaza({
               src={
                 knownLooks[neighbor.id] === "bun"
                   ? "/capy-world/capy-neighbor-v1.webp"
-                  : "/capy-world/capy-hero-v1.webp"
+                  : walkingSprite(
+                      neighbor.facing,
+                      neighbor.walking ? remoteFrame : 0,
+                    ).src
               }
+              style={{
+                scale: walkingSprite(neighbor.facing).flip ? "-1 1" : undefined,
+              }}
               alt=""
               draggable={false}
             />
@@ -673,32 +835,38 @@ export default function CapyPlaza({
           <div className="capy-mobile-pad" aria-label="이동 방향">
             <button
               aria-label="위로 이동"
-              onPointerDown={() => walkTo({ x: position.x, y: position.y - 6 })}
+              onPointerDown={(event) => holdDirection(event, { x: 0, y: -1 })}
+              onPointerUp={releaseDirection}
+              onPointerCancel={releaseDirection}
+              onLostPointerCapture={releaseDirection}
             >
               ↑
             </button>
             <div>
               <button
                 aria-label="왼쪽으로 이동"
-                onPointerDown={() =>
-                  walkTo({ x: position.x - 6, y: position.y })
-                }
+                onPointerDown={(event) => holdDirection(event, { x: -1, y: 0 })}
+                onPointerUp={releaseDirection}
+                onPointerCancel={releaseDirection}
+                onLostPointerCapture={releaseDirection}
               >
                 ←
               </button>
               <button
                 aria-label="아래로 이동"
-                onPointerDown={() =>
-                  walkTo({ x: position.x, y: position.y + 6 })
-                }
+                onPointerDown={(event) => holdDirection(event, { x: 0, y: 1 })}
+                onPointerUp={releaseDirection}
+                onPointerCancel={releaseDirection}
+                onLostPointerCapture={releaseDirection}
               >
                 ↓
               </button>
               <button
                 aria-label="오른쪽으로 이동"
-                onPointerDown={() =>
-                  walkTo({ x: position.x + 6, y: position.y })
-                }
+                onPointerDown={(event) => holdDirection(event, { x: 1, y: 0 })}
+                onPointerUp={releaseDirection}
+                onPointerCancel={releaseDirection}
+                onLostPointerCapture={releaseDirection}
               >
                 →
               </button>

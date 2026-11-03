@@ -228,6 +228,7 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  transition: transform 160ms ease-out;
   background: url("/capy-world/village-v2.webp") center / 100% 100% no-repeat;
   cursor: crosshair;
   touch-action: manipulation;
@@ -239,7 +240,7 @@
 
 .capy-club-sign {
   position: absolute;
-  z-index: 2;
+  z-index: 100;
   left: 50%;
   top: 30%;
   transform: translate(-50%, -50%) rotate(-2deg);
@@ -257,7 +258,7 @@
 
 .capy-club-entrance {
   position: absolute;
-  z-index: 4;
+  z-index: 100;
   left: 50%;
   top: 48%;
   transform: translate(-50%, -50%);
@@ -295,7 +296,7 @@
 
 .capy-guard {
   position: absolute;
-  z-index: 3;
+  z-index: 64;
   left: 62%;
   top: 64%;
   display: grid;
@@ -367,6 +368,67 @@
     transparent 65%,
     #45304421 100%
   );
+}
+
+.capy-atmosphere {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+}
+
+.capy-plaza.is-village .capy-atmosphere {
+  background: radial-gradient(ellipse at 84% 55%, #fff4bd66 0, #ffe0a800 25%);
+  mix-blend-mode: screen;
+  animation: capy-sunset-shimmer 5.5s ease-in-out infinite alternate;
+}
+
+.capy-plaza.is-village .capy-atmosphere::before {
+  content: "";
+  position: absolute;
+  inset: 18% 0 8% 68%;
+  background: repeating-linear-gradient(
+    174deg,
+    transparent 0 31px,
+    #fff8d4 33px 35px,
+    transparent 37px 72px
+  );
+  mask-image: radial-gradient(ellipse at 65% 55%, black, transparent 75%);
+  opacity: 0.17;
+  animation: capy-water-drift 7s linear infinite;
+}
+
+.capy-plaza.is-club .capy-atmosphere {
+  background: conic-gradient(
+    from 155deg at 50% 29%,
+    transparent 0 43deg,
+    #e8bcff32 54deg,
+    transparent 70deg 180deg,
+    #ffd4ec2c 198deg,
+    transparent 218deg 360deg
+  );
+  mix-blend-mode: screen;
+  animation: capy-club-glow 4s ease-in-out infinite alternate;
+}
+
+@keyframes capy-sunset-shimmer {
+  to {
+    opacity: 0.36;
+    transform: translateX(1.5%);
+  }
+}
+
+@keyframes capy-water-drift {
+  to {
+    transform: translate(-11px, 24px);
+  }
+}
+
+@keyframes capy-club-glow {
+  to {
+    opacity: 0.4;
+    transform: rotate(2deg);
+  }
 }
 
 .capy-plaza button:focus-visible {
@@ -593,6 +655,12 @@
   filter: drop-shadow(0 10px 6px #67484c69);
 }
 
+.capy-player img {
+  height: clamp(140px, 12.5vw, 180px);
+  object-fit: contain;
+  object-position: center bottom;
+}
+
 .capy-neighbor span,
 .capy-name {
   margin-top: -5px;
@@ -608,6 +676,7 @@
 }
 
 .capy-neighbor-one {
+  z-index: 68;
   left: 65%;
   top: 68%;
   animation: capy-idle 2.7s ease-in-out infinite;
@@ -739,7 +808,7 @@
 
 @keyframes capy-walk {
   to {
-    transform: rotate(3deg) translateY(-4px);
+    transform: translateY(-3px);
   }
 }
 
@@ -870,6 +939,7 @@
     gap: 3px;
   }
   .capy-mobile-pad button {
+    touch-action: none;
     width: 45px;
     height: 45px;
     border: 2px solid #fff8e9;
@@ -908,10 +978,12 @@
     top: 63%;
   }
   .capy-club-dancer-one {
+    z-index: 70;
     left: 44%;
     top: 67%;
   }
   .capy-club-dancer-two {
+    z-index: 70;
     left: 56%;
     top: 67%;
   }
@@ -967,6 +1039,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .capy-map {
+    transition: none;
+  }
+  .capy-atmosphere,
+  .capy-atmosphere::before,
   .capy-neighbor,
   .capy-player.is-walking img,
   .capy-player.is-dancing img,
