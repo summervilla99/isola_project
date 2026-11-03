@@ -2,18 +2,28 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
   BookOpen,
   Heart,
   Home,
   Menu,
+  Music2,
   Users,
   X,
 } from "lucide-react";
 import { supabase } from "@/lib/store";
+import { startClubBeat } from "@/lib/club-beat";
 
 type Position = { x: number; y: number };
-type Neighbor = Position & { id: string; name: string; bubble?: string };
+type Zone = "village" | "club";
+type Neighbor = Position & {
+  id: string;
+  name: string;
+  zone: Zone;
+  bubble?: string;
+  dancing?: boolean;
+};
 type PlazaProps = {
   islandId?: string;
   userId?: string;
@@ -36,6 +46,7 @@ type PlazaProps = {
 };
 
 const START = { x: 51, y: 76 };
+const CLUB_START = { x: 50, y: 78 };
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
@@ -67,6 +78,11 @@ export default function CapyPlaza({
   const [walking, setWalking] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [bubble, setBubble] = useState("");
+  const [zone, setZone] = useState<Zone>("village");
+  const [dancing, setDancing] = useState(false);
+  const [musicOn, setMusicOn] = useState(false);
+  const zoneRef = useRef<Zone>("village");
+  const audioContext = useRef<AudioContext | null>(null);
   const [neighbors, setNeighbors] = useState<Neighbor[]>([]);
   const [connected, setConnected] = useState(false);
   const channel = useRef<ReturnType<
@@ -77,12 +93,33 @@ export default function CapyPlaza({
   knownNamesRef.current = knownNames;
 
   const walkTo = useCallback((point: Position) => {
+    const club = zoneRef.current === "club";
     destination.current = {
-      x: clamp(point.x, 27, 74),
-      y: clamp(point.y, 48, 88),
+      x: clamp(point.x, club ? 22 : 27, club ? 78 : 74),
+      y: clamp(point.y, club ? 51 : 48, 88),
     };
     setWalking(true);
   }, []);
+
+  const changeZone = useCallback(
+    (next: Zone) => {
+      if (guest) {
+        onExplore?.();
+        return;
+      }
+      zoneRef.current = next;
+      setZone(next);
+      const start = next === "club" ? CLUB_START : START;
+      player.current = start;
+      destination.current = start;
+      setPosition(start);
+      setNeighbors([]);
+      setBubble("");
+      setDancing(false);
+      if (next === "village") setMusicOn(false);
+    },
+    [guest, onExplore],
+  );
 
   useEffect(() => {
     let frame = 0;
@@ -98,9 +135,14 @@ export default function CapyPlaza({
         Number(keys.has("ArrowDown") || keys.has("s")) -
         Number(keys.has("ArrowUp") || keys.has("w"));
       if (dx || dy) {
+        const club = zoneRef.current === "club";
         destination.current = {
-          x: clamp(player.current.x + dx * dt * 24, 27, 74),
-          y: clamp(player.current.y + dy * dt * 24, 48, 88),
+          x: clamp(
+            player.current.x + dx * dt * 24,
+            club ? 22 : 27,
+            club ? 78 : 74,
+          ),
+          y: clamp(player.current.y + dy * dt * 24, club ? 51 : 48, 88),
         };
       }
       const distanceX = destination.current.x - player.current.x;
@@ -158,6 +200,30 @@ export default function CapyPlaza({
   }, [bubble]);
 
   useEffect(() => {
+    const context = audioContext.current;
+    if (!context || !musicOn || zone !== "club") {
+      if (context?.state === "running") void context.suspend();
+      return;
+    }
+    void context.resume();
+    return startClubBeat(context);
+  }, [musicOn, zone]);
+
+  useEffect(
+    () => () => {
+      if (audioContext.current) void audioContext.current.close();
+    },
+    [],
+  );
+
+  const toggleMusic = () => {
+    if (!musicOn && !audioContext.current)
+      audioContext.current = new AudioContext();
+    if (!musicOn) void audioContext.current?.resume();
+    setMusicOn((current) => !current);
+  };
+
+  useEffect(() => {
     if (!supabase || !islandId || !userId || demo) return;
     const client = supabase;
     const room = client.channel(`capy-island:${islandId}`, {
@@ -174,6 +240,7 @@ export default function CapyPlaza({
           .filter(
             (peer) =>
               peer.id !== userId &&
+              peer.zone === zoneRef.current &&
               !!knownNamesRef.current[peer.id] &&
               Number.isFinite(peer.x) &&
               Number.isFinite(peer.y),
@@ -181,8 +248,13 @@ export default function CapyPlaza({
           .map((peer) => ({
             id: peer.id,
             name: knownNamesRef.current[peer.id],
-            x: clamp(peer.x, 27, 74),
-            y: clamp(peer.y, 48, 88),
+            zone: peer.zone,
+            x: clamp(
+              peer.x,
+              peer.zone === "club" ? 22 : 27,
+              peer.zone === "club" ? 78 : 74,
+            ),
+            y: clamp(peer.y, peer.zone === "club" ? 51 : 48, 88),
           })),
       );
     };
@@ -193,6 +265,7 @@ export default function CapyPlaza({
         if (
           !peer.id ||
           peer.id === userId ||
+          peer.zone !== zoneRef.current ||
           !knownNamesRef.current[peer.id] ||
           !Number.isFinite(peer.x) ||
           !Number.isFinite(peer.y)
@@ -201,7 +274,15 @@ export default function CapyPlaza({
         setNeighbors((current) =>
           current.map((item) =>
             item.id === peer.id
-              ? { ...item, x: clamp(peer.x, 27, 74), y: clamp(peer.y, 48, 88) }
+              ? {
+                  ...item,
+                  x: clamp(
+                    peer.x,
+                    peer.zone === "club" ? 22 : 27,
+                    peer.zone === "club" ? 78 : 74,
+                  ),
+                  y: clamp(peer.y, peer.zone === "club" ? 51 : 48, 88),
+                }
               : item,
           ),
         );
@@ -211,15 +292,22 @@ export default function CapyPlaza({
         if (
           !peer.id ||
           peer.id === userId ||
+          peer.zone !== zoneRef.current ||
           !knownNamesRef.current[peer.id] ||
-          !["안녕! 👋", "여기 너무 좋아 🌷", "같이 쉬어갈래? ☕"].includes(
-            peer.bubble ?? "",
-          )
+          ![
+            "안녕! 👋",
+            "여기 너무 좋아 🌷",
+            "같이 쉬어갈래? ☕",
+            "춤춰요! 🪩",
+            "건배! 🍺",
+          ].includes(peer.bubble ?? "")
         )
           return;
         setNeighbors((current) =>
           current.map((item) =>
-            item.id === peer.id ? { ...item, bubble: peer.bubble } : item,
+            item.id === peer.id
+              ? { ...item, bubble: peer.bubble, dancing: !!peer.dancing }
+              : item,
           ),
         );
         window.setTimeout(
@@ -239,6 +327,7 @@ export default function CapyPlaza({
           await room.track({
             id: userId,
             name: userName ?? "카피바라",
+            zone: zoneRef.current,
             ...player.current,
           });
         } else if (
@@ -255,6 +344,7 @@ export default function CapyPlaza({
         void room.track({
           id: userId,
           name: userName ?? "카피바라",
+          zone: zoneRef.current,
           ...player.current,
         });
     }, 5000);
@@ -264,6 +354,16 @@ export default function CapyPlaza({
       void client.removeChannel(room);
     };
   }, [islandId, userId, userName, demo]);
+
+  useEffect(() => {
+    if (connected)
+      void channel.current?.track({
+        id: userId,
+        name: userName ?? "카피바라",
+        zone,
+        ...player.current,
+      });
+  }, [zone, connected, userId, userName]);
 
   useEffect(() => {
     if (
@@ -276,17 +376,23 @@ export default function CapyPlaza({
     void channel.current.send({
       type: "broadcast",
       event: "walk",
-      payload: { id: userId, ...position },
+      payload: { id: userId, zone, ...position },
     });
-  }, [position, connected, userId]);
+  }, [position, connected, userId, zone]);
 
-  const gesture = (message: string) => {
+  const gesture = (message: string, dance = false) => {
     setBubble(message);
+    if (dance) setDancing((current) => !current);
     if (connected)
       void channel.current?.send({
         type: "broadcast",
         event: "gesture",
-        payload: { id: userId, bubble: message },
+        payload: {
+          id: userId,
+          zone,
+          bubble: message,
+          dancing: dance ? !dancing : dancing,
+        },
       });
   };
 
@@ -305,22 +411,58 @@ export default function CapyPlaza({
 
   return (
     <section
-      className={`capy-plaza ${guest ? "is-guest" : ""}`}
-      aria-label="카피바라 마을 광장"
+      className={`capy-plaza ${guest ? "is-guest" : ""} is-${zone}`}
+      aria-label={zone === "club" ? "카피바라 클럽" : "카피바라 마을 광장"}
     >
       <div ref={map} className="capy-map" onClick={handleMapClick}>
         <div className="capy-sky-glow" />
-        <div className="capy-neighbor capy-neighbor-one" aria-hidden="true">
-          <img src="/capy-world/capy-neighbor-v1.webp" alt="" />
-          <span>라일락</span>
-        </div>
-        <div className="capy-neighbor capy-neighbor-two" aria-hidden="true">
-          <img src="/capy-world/capy-hero-v1.webp" alt="" />
-          <span>느린 오후</span>
-        </div>
+        {zone === "village" ? (
+          <>
+            <div className="capy-club-sign" aria-hidden="true">
+              CAPY CLUB
+            </div>
+            <button
+              className="capy-club-entrance"
+              aria-label="카피바라 클럽 입장"
+              onClick={(event) => {
+                event.stopPropagation();
+                changeZone("club");
+              }}
+            >
+              <span>
+                🪩 클럽 입장 <ArrowRight size={16} />
+              </span>
+            </button>
+            <div className="capy-guard" aria-label="클럽 입구의 카피바라 가드">
+              <img src="/capy-world/club-guard-v1.webp" alt="" />
+              <span>가드 모카</span>
+            </div>
+            <div className="capy-neighbor capy-neighbor-one" aria-hidden="true">
+              <img src="/capy-world/capy-neighbor-v1.webp" alt="" />
+              <span>라일락</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div
+              className="capy-neighbor capy-club-dancer-one"
+              aria-hidden="true"
+            >
+              <img src="/capy-world/capy-neighbor-v1.webp" alt="" />
+              <span>라일락</span>
+            </div>
+            <div
+              className="capy-neighbor capy-club-dancer-two"
+              aria-hidden="true"
+            >
+              <img src="/capy-world/club-guard-v1.webp" alt="" />
+              <span>모카</span>
+            </div>
+          </>
+        )}
         {!guest && (
           <div
-            className={`capy-player ${walking ? "is-walking" : ""}`}
+            className={`capy-player ${walking ? "is-walking" : ""} ${dancing ? "is-dancing" : ""}`}
             style={{ left: `${position.x}%`, top: `${position.y}%` }}
             aria-label="내 카피바라"
           >
@@ -340,7 +482,7 @@ export default function CapyPlaza({
         {neighbors.map((neighbor) => (
           <div
             key={neighbor.id}
-            className="capy-player capy-remote"
+            className={`capy-player capy-remote ${neighbor.dancing ? "is-dancing" : ""}`}
             style={{ left: `${neighbor.x}%`, top: `${neighbor.y}%` }}
           >
             {neighbor.bubble && (
@@ -364,13 +506,13 @@ export default function CapyPlaza({
         <div className="capy-brand">
           <span className="capy-brand-icon">✿</span>
           <span>
-            CAPY COVE<small>카피바라들의 노을 마을</small>
+            카피바라 스토리<small>CAPYBARA STORY</small>
           </span>
         </div>
         <div className="capy-top-actions">
           {!guest && (
             <span className="capy-island-chip">
-              {islandName} ·{" "}
+              {zone === "club" ? "카피바라 클럽" : islandName} ·{" "}
               {demo
                 ? "샘플"
                 : connected
@@ -403,6 +545,16 @@ export default function CapyPlaza({
             </>
           ) : (
             <>
+              <button
+                onClick={() => changeZone(zone === "club" ? "village" : "club")}
+              >
+                {zone === "club" ? (
+                  <ArrowLeft size={18} />
+                ) : (
+                  <Music2 size={18} />
+                )}
+                {zone === "club" ? "노을 마을로" : "카피바라 클럽"}
+              </button>
               <button onClick={onHome}>
                 <Home size={18} /> 나의 집
               </button>
@@ -428,16 +580,16 @@ export default function CapyPlaza({
 
       {guest ? (
         <div className="capy-guest-card">
-          <p>WELCOME TO THE COVE</p>
+          <p>WELCOME TO CAPYBARA STORY</p>
           <h1>
-            오늘은 여기서
+            노을이 지면,
             <br />
-            조금 쉬어갈까?
+            클럽 문이 열려.
           </h1>
-          <span>카피바라가 되어 걷고, 친구의 작은 세계에 놀러 가요.</span>
+          <span>바다 마을을 걷다가, 카피바라 클럽에서 만나.</span>
           <div>
             <button className="capy-primary-button" onClick={onExplore}>
-              바로 마을 구경하기 <ArrowRight size={19} />
+              카피바라로 들어가기 <ArrowRight size={19} />
             </button>
             <button className="capy-text-button" onClick={onLogin}>
               내 카피바라 만들기
@@ -447,7 +599,8 @@ export default function CapyPlaza({
       ) : (
         <>
           <div className="capy-place-label">
-            <span>✦</span> 조개분수 광장 <small>바닥을 누르면 걸어가요</small>
+            <span>✦</span> {zone === "club" ? "카피바라 클럽" : "노을 마을"}{" "}
+            <small>바닥을 누르면 걸어가요</small>
             <small className="capy-live-count">
               {demo
                 ? "샘플 섬"
@@ -456,25 +609,66 @@ export default function CapyPlaza({
                   : "연결 중"}
             </small>
           </div>
+          {zone === "club" && (
+            <button
+              className="capy-exit-club"
+              onClick={() => changeZone("village")}
+            >
+              <ArrowLeft size={17} /> 마을로 나가기
+            </button>
+          )}
           <div className="capy-action-bar">
-            <button onClick={() => gesture("안녕! 👋")} aria-label="인사하기">
-              <span>👋</span>
-              <small>인사</small>
-            </button>
-            <button
-              onClick={() => gesture("여기 너무 좋아 🌷")}
-              aria-label="감탄하기"
-            >
-              <span>🌷</span>
-              <small>감탄</small>
-            </button>
-            <button
-              onClick={() => gesture("같이 쉬어갈래? ☕")}
-              aria-label="함께 쉬기"
-            >
-              <span>☕</span>
-              <small>쉬기</small>
-            </button>
+            {zone === "club" ? (
+              <>
+                <button
+                  onClick={() => gesture("춤춰요! 🪩", true)}
+                  aria-label="춤추기"
+                  aria-pressed={dancing}
+                >
+                  <span>🪩</span>
+                  <small>{dancing ? "춤 멈춤" : "춤추기"}</small>
+                </button>
+                <button
+                  onClick={() => gesture("건배! 🍺")}
+                  aria-label="맥주로 건배"
+                >
+                  <span>🍺</span>
+                  <small>건배</small>
+                </button>
+                <button
+                  onClick={toggleMusic}
+                  aria-label={musicOn ? "음악 끄기" : "음악 켜기"}
+                  aria-pressed={musicOn}
+                >
+                  <span>{musicOn ? "🔊" : "🎵"}</span>
+                  <small>하우스 비트</small>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => gesture("안녕! 👋")}
+                  aria-label="인사하기"
+                >
+                  <span>👋</span>
+                  <small>인사</small>
+                </button>
+                <button
+                  onClick={() => gesture("여기 너무 좋아 🌷")}
+                  aria-label="감탄하기"
+                >
+                  <span>🌷</span>
+                  <small>감탄</small>
+                </button>
+                <button
+                  onClick={() => gesture("같이 쉬어갈래? ☕")}
+                  aria-label="함께 쉬기"
+                >
+                  <span>☕</span>
+                  <small>쉬기</small>
+                </button>
+              </>
+            )}
           </div>
           <div className="capy-mobile-pad" aria-label="이동 방향">
             <button
@@ -511,7 +705,10 @@ export default function CapyPlaza({
             </div>
           </div>
           <div className="capy-hud-bottom">
-            <span>✿</span> 작은 발걸음부터 시작해요
+            <span>✿</span>{" "}
+            {zone === "club"
+              ? "HOUSE BEAT · 120 BPM"
+              : "클럽 입구에서 모카가 기다려요"}
           </div>
         </>
       )}

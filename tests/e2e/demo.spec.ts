@@ -4,7 +4,7 @@ test("sample records persist and are explicitly separate from real accounts", as
 }) => {
   await page.goto("/");
   await page
-    .getByRole("button", { name: "바로 마을 구경하기", exact: true })
+    .getByRole("button", { name: "카피바라로 들어가기", exact: true })
     .click();
   await expect(page.locator(".capy-island-chip")).toContainText("샘플");
   await page.getByRole("button", { name: "메뉴 열기" }).click();
@@ -34,7 +34,7 @@ test("list fallback and space editor save the draft before publication", async (
 }) => {
   await page.goto("/");
   await page
-    .getByRole("button", { name: "바로 마을 구경하기", exact: true })
+    .getByRole("button", { name: "카피바라로 들어가기", exact: true })
     .click();
   await page.getByRole("button", { name: "메뉴 열기" }).click();
   await page.getByRole("button", { name: "나의 집", exact: true }).click();

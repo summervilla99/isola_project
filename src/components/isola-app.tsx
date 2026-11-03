@@ -383,7 +383,7 @@ export default function IsolaApp() {
     return (
       <main className="boot">
         <Leaf />
-        <h1>CAPY COVE</h1>
+        <h1>카피바라 스토리</h1>
         <p>섬으로 가는 중이에요…</p>
       </main>
     );
@@ -397,7 +397,7 @@ export default function IsolaApp() {
         />
         <nav className="landing-nav">
           <a className="wordmark" href="/">
-            ISOLA<span>이솔라</span>
+            카피바라 스토리<span>CAPYBARA STORY</span>
           </a>
           <button className="btn subtle" onClick={() => setModal("login")}>
             로그인 <ArrowRight size={16} />
@@ -451,7 +451,7 @@ export default function IsolaApp() {
           </div>
           <div className="sea-ring ring-one" />
           <div className="sea-ring ring-two" />
-          <span className="art-caption">당신만의 작은 낙원, ISOLA</span>
+          <span className="art-caption">노을 마을의 카피바라 스토리</span>
         </div>
         <footer className="landing-footer">
           <span>작고 다정한 세계를 만드는 중입니다.</span>
@@ -526,7 +526,7 @@ export default function IsolaApp() {
                 navigate("island");
               }}
             >
-              CAPY COVE<span>카피바라들의 노을 마을</span>
+              카피바라 스토리<span>카피바라들의 노을 마을</span>
             </a>
             <div className="island-switch">
               <span className="mini-island">🏝️</span>
@@ -1766,7 +1766,7 @@ export default function IsolaApp() {
               )}
               <footer className="workspace-footer">
                 <span>
-                  CAPY COVE <span>·</span> 카피바라들의 노을 마을
+                  카피바라 스토리 <span>·</span> 카피바라들의 노을 마을
                 </span>
                 <span>Take your time. You belong here.</span>
               </footer>
@@ -2102,7 +2102,7 @@ function Login({
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   return (
-    <Modal title="CAPY COVE에 오신 걸 환영해요" onClose={onClose}>
+    <Modal title="카피바라 스토리에 오신 걸 환영해요" onClose={onClose}>
       <form
         className="form"
         onSubmit={async (e) => {

@@ -124,7 +124,7 @@
   --line: #efdaca;
   display: block;
   min-height: 100dvh;
-  background: url("/capy-world/plaza-v1.webp") center / cover fixed no-repeat;
+  background: url("/capy-world/village-v2.webp") center / cover fixed no-repeat;
 }
 
 .app-shell.capy-panel > .sidebar {
@@ -228,9 +228,132 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  background: url("/capy-world/plaza-v1.webp") center / 100% 100% no-repeat;
+  background: url("/capy-world/village-v2.webp") center / 100% 100% no-repeat;
   cursor: crosshair;
   touch-action: manipulation;
+}
+
+.capy-plaza.is-club .capy-map {
+  background-image: url("/capy-world/club-v1.webp");
+}
+
+.capy-club-sign {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 30%;
+  transform: translate(-50%, -50%) rotate(-2deg);
+  padding: 5px 13px;
+  border: 2px solid #fff3ca;
+  border-radius: 10px;
+  background: #784965;
+  box-shadow: 0 3px 0 #4d354d;
+  color: #ffe7ab;
+  font-size: clamp(10px, 1.25vw, 18px);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.capy-club-entrance {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 48%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: end center;
+  width: 16%;
+  height: 23%;
+  padding-bottom: 1%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.capy-club-entrance span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border: 2px solid #fff4d7;
+  border-radius: 30px;
+  background: #ff7899;
+  box-shadow:
+    0 4px 0 #9d506e,
+    0 8px 18px #5f3d5270;
+  color: #fff;
+  font-size: clamp(10px, 1vw, 14px);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.capy-club-entrance:hover span,
+.capy-club-entrance:focus-visible span {
+  transform: translateY(-3px);
+}
+
+.capy-guard {
+  position: absolute;
+  z-index: 3;
+  left: 62%;
+  top: 64%;
+  display: grid;
+  justify-items: center;
+  transform: translate(-50%, -88%);
+  pointer-events: none;
+}
+
+.capy-guard img {
+  width: clamp(70px, 8vw, 126px);
+  filter: drop-shadow(0 10px 5px #67484c69);
+}
+
+.capy-guard span {
+  padding: 3px 9px;
+  border: 2px solid #fff4dc;
+  border-radius: 20px;
+  background: #fff7e4ed;
+  color: #6b4759;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.capy-club-dancer-one {
+  left: 38%;
+  top: 70%;
+}
+.capy-club-dancer-two {
+  left: 64%;
+  top: 70%;
+}
+.capy-club-dancer-one img,
+.capy-club-dancer-two img {
+  animation: capy-dance 0.7s ease-in-out infinite alternate;
+}
+.capy-club-dancer-two img {
+  animation-delay: -0.35s;
+}
+.capy-player.is-dancing img {
+  animation: capy-dance 0.65s ease-in-out infinite alternate;
+}
+
+.capy-exit-club {
+  position: absolute;
+  z-index: 5;
+  top: 96px;
+  left: max(24px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 14px;
+  border: 2px solid #fff8e9;
+  border-radius: 16px;
+  background: #fff0dbe9;
+  box-shadow: 0 4px 0 #9d6b7d;
+  color: #6c485a;
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .capy-sky-glow {
@@ -532,6 +655,7 @@
 }
 
 .capy-place-label {
+  display: none;
   position: absolute;
   top: 100px;
   left: 50%;
@@ -619,6 +743,12 @@
   }
 }
 
+@keyframes capy-dance {
+  to {
+    transform: rotate(8deg) translateY(-9px) scale(1.04);
+  }
+}
+
 @media (max-width: 700px) {
   .app-shell.capy-panel {
     padding-top: 110px;
@@ -691,6 +821,21 @@
     top: 74px;
     font-size: 11px;
   }
+  .capy-exit-club {
+    top: 74px;
+    left: 14px;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  .capy-plaza.is-club .capy-place-label {
+    display: none;
+  }
+  .capy-club-entrance {
+    width: 25%;
+  }
+  .capy-club-sign {
+    font-size: 11px;
+  }
   .capy-place-label small {
     display: none;
   }
@@ -752,11 +897,23 @@
 
 @media (max-width: 700px) and (orientation: portrait) {
   .capy-neighbor-one {
-    left: 53%;
-    top: 65%;
+    left: 45%;
+    top: 68%;
   }
   .capy-neighbor-two {
     display: none;
+  }
+  .capy-guard {
+    left: 56%;
+    top: 63%;
+  }
+  .capy-club-dancer-one {
+    left: 44%;
+    top: 67%;
+  }
+  .capy-club-dancer-two {
+    left: 56%;
+    top: 67%;
   }
 }
 
@@ -811,7 +968,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .capy-neighbor,
-  .capy-player.is-walking img {
+  .capy-player.is-walking img,
+  .capy-player.is-dancing img,
+  .capy-club-dancer-one img,
+  .capy-club-dancer-two img {
     animation: none;
   }
 }

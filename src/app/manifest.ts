@@ -1,8 +1,8 @@
 import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "CAPY COVE · 카피바라들의 노을 마을",
-    short_name: "CAPY COVE",
+    name: "카피바라 스토리 · 카피바라들의 노을 마을",
+    short_name: "카피바라 스토리",
     description: "카피바라가 되어 걷고, 친구의 작은 세계에 놀러 가요.",
     start_url: "/",
     display: "standalone",
