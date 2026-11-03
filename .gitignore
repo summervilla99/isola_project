@@ -10,3 +10,4 @@ work/
 .DS_Store
 game/.godot/
 game/builds/
+.vercel
