@@ -1,6 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState, FormEvent } from "react";
+import CapyPlaza from "./capy-plaza";
+import { useEffect, useMemo, useRef, useState, FormEvent } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -106,19 +107,15 @@ function AvatarDot({
   small?: boolean;
 }) {
   return (
-    <span
-      className={`avatar-dot ${small ? "small" : ""}`}
-      style={{ background: profile?.avatar.shirt ?? "#b8c5af" }}
-    >
-      <span
-        className="avatar-face"
-        style={{
-          background: profile?.avatar.skin ?? "#efc3a4",
-          borderTopColor: profile?.avatar.hair ?? "#514139",
-        }}
-      >
-        {profile?.name?.slice(0, 1)}
-      </span>
+    <span className={`avatar-dot capy-avatar-dot ${small ? "small" : ""}`}>
+      <img
+        src={
+          profile?.avatar.style === "bun"
+            ? "/capy-world/capy-neighbor-v1.webp"
+            : "/capy-world/capy-hero-v1.webp"
+        }
+        alt=""
+      />
     </span>
   );
 }
@@ -154,6 +151,23 @@ export default function IsolaApp() {
     space = world?.spaces.find((s) => s.id === spaceId),
     owner = world?.profiles.find((p) => p.id === space?.owner),
     mine = space?.owner === world?.me;
+  const knownNames = useMemo(
+    () =>
+      Object.fromEntries(
+        (world?.profiles ?? []).map((profile) => [profile.id, profile.name]),
+      ),
+    [world?.profiles],
+  );
+  const knownLooks = useMemo(
+    () =>
+      Object.fromEntries(
+        (world?.profiles ?? []).map((profile) => [
+          profile.id,
+          profile.avatar.style,
+        ]),
+      ),
+    [world?.profiles],
+  );
   const tell = (s: string) => setToast(s);
   useEffect(() => {
     if (!toast) return;
@@ -369,13 +383,18 @@ export default function IsolaApp() {
     return (
       <main className="boot">
         <Leaf />
-        <h1>ISOLA</h1>
+        <h1>CAPY COVE</h1>
         <p>섬으로 가는 중이에요…</p>
       </main>
     );
   if (!world)
     return (
-      <main className="landing">
+      <main className="landing capy-landing">
+        <CapyPlaza
+          guest
+          onExplore={startDemo}
+          onLogin={() => setModal("login")}
+        />
         <nav className="landing-nav">
           <a className="wordmark" href="/">
             ISOLA<span>이솔라</span>
@@ -466,706 +485,894 @@ export default function IsolaApp() {
     (n) => n.recipient === world.me,
   );
   return (
-    <div className="app-shell">
-      <aside className={`sidebar ${menu ? "expanded" : ""}`}>
-        <a
-          href="/"
-          className="wordmark"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate("island");
+    <div
+      className={`app-shell ${view === "island" && world.island ? "capy-island" : ""}`}
+    >
+      {view === "island" && world.island && (
+        <CapyPlaza
+          islandId={world.island.id}
+          userId={world.me}
+          userName={me?.name}
+          knownNames={knownNames}
+          knownLooks={knownLooks}
+          playerLook={me?.avatar.style}
+          demo={demo}
+          islandName={world.island.name}
+          residentCount={world.members.length}
+          onHome={() => {
+            const home = world.spaces.find(
+              (s) => s.owner === world.me && s.kind === "interior",
+            );
+            if (home) navigate("space", home.id);
+            else setModal("create");
           }}
-        >
-          ISOLA<span>우리의 작은 낙원</span>
-        </a>
-        <div className="island-switch">
-          <span className="mini-island">🏝️</span>
-          <div>
-            <strong>{world.island?.name ?? "새로운 섬"}</strong>
-            <span>초대받은 우리만의 공간</span>
-          </div>
-        </div>
-        <p className="nav-label">MY LITTLE WORLD</p>
-        <nav className="main-nav" aria-label="주요 메뉴">
-          {(
-            [
-              { key: "island", icon: Compass, label: "우리의 섬" },
-              { key: "space", icon: Home, label: "나의 공간" },
-              { key: "archive", icon: BookOpen, label: "취향 서랍" },
-              { key: "people", icon: Users, label: "함께 사는 친구들" },
-              { key: "notifications", icon: Bell, label: "도착한 마음" },
-            ] as const
-          ).map((n) => (
-            <button
-              key={n.key}
-              className={view === n.key ? "active" : ""}
-              onClick={() => {
-                if (n.key === "space") {
-                  const s = world.spaces.find(
-                    (s) => s.owner === world.me && s.kind === "interior",
-                  );
-                  if (s) navigate("space", s.id);
-                  else setModal("create");
-                } else navigate(n.key);
+          onArchive={() => navigate("archive")}
+          onPeople={() => navigate("people")}
+          onInvite={() => setModal("invite")}
+          onProfile={() => setModal("profile")}
+          onCreateAccount={() => {
+            void signOut().then(() => setModal("login"));
+          }}
+        />
+      )}
+      {!(view === "island" && world.island) && (
+        <>
+          <aside className={`sidebar ${menu ? "expanded" : ""}`}>
+            <a
+              href="/"
+              className="wordmark"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate("island");
               }}
             >
-              <n.icon size={19} />
-              <span>{n.label}</span>
-              {n.key === "notifications" &&
-                notifications.some((n) => !n.read) && (
-                  <i className="notification-dot" />
-                )}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-note">
-          <Flower2 size={25} />
-          <p>
-            잠깐 쉬어가도 괜찮아.
-            <br />
-            여기는 우리의 섬이니까.
-          </p>
-          <span>조금 느려도 좋은 곳</span>
-        </div>
-        <div className="sidebar-bottom">
-          <button
-            className="settings-link"
-            onClick={() => navigate("settings")}
-          >
-            <Settings size={17} />
-            설정
-          </button>
-          <button
-            className="profile-button"
-            onClick={() => setModal("profile")}
-          >
-            <AvatarDot profile={me} />
-            <div>
-              <strong>{me?.name ?? "새로운 이웃"}</strong>
-              <span>나답게, 자유롭게</span>
+              CAPY COVE<span>카피바라들의 노을 마을</span>
+            </a>
+            <div className="island-switch">
+              <span className="mini-island">🏝️</span>
+              <div>
+                <strong>{world.island?.name ?? "새로운 섬"}</strong>
+                <span>초대받은 우리만의 공간</span>
+              </div>
             </div>
-            <MoreHorizontal size={18} />
-          </button>
-        </div>
-      </aside>
-      <div className="main-area">
-        <header className="topbar">
-          <button
-            className="icon-btn mobile-menu"
-            aria-label="메뉴 열기"
-            onClick={() => setMenu(!menu)}
-          >
-            <Menu />
-          </button>
-          <div className="breadcrumb">
-            <span>나의 작은 세계</span>
-            <ChevronRight size={14} />
-            <strong>
-              {
-                {
-                  island: "우리의 섬",
-                  space: mine ? "나의 공간" : `${owner?.name ?? "친구"}의 공간`,
-                  archive: "취향 서랍",
-                  people: "함께 사는 친구들",
-                  notifications: "도착한 마음",
-                  settings: "설정",
-                }[view]
-              }
-            </strong>
-          </div>
-          <div className="topbar-actions">
-            <span className="private-chip">
-              <LockKeyhole size={13} /> 초대 전용
-            </span>
-            <button
-              className="icon-btn"
-              aria-label="알림"
-              onClick={() => navigate("notifications")}
-            >
-              <Bell size={19} />
-            </button>
-            <button
-              className="avatar-button"
-              aria-label="내 프로필"
-              onClick={() => setModal("profile")}
-            >
-              <AvatarDot profile={me} small />
-            </button>
-          </div>
-        </header>
-        {demo && (
-          <div className="demo-banner">
-            <span>
-              <Sparkles size={13} /> 샘플 섬 · 변경사항은 이 브라우저에만
-              저장돼요
-            </span>
-            <button onClick={signOut}>
-              실제 계정으로 시작하기 <ArrowRight size={13} />
-            </button>
-          </div>
-        )}
-        {offline && (
-          <div className="notice">
-            인터넷 연결이 끊겼어요. 연결 후 다시 저장해 주세요.
-          </div>
-        )}
-        <main className="workspace">
-          {pendingToken && !demo && (
-            <div className="notice">
-              섬 초대가 도착했어요.
+            <p className="nav-label">MY LITTLE WORLD</p>
+            <nav className="main-nav" aria-label="주요 메뉴">
+              {(
+                [
+                  { key: "island", icon: Compass, label: "우리의 섬" },
+                  { key: "space", icon: Home, label: "나의 공간" },
+                  { key: "archive", icon: BookOpen, label: "취향 서랍" },
+                  { key: "people", icon: Users, label: "함께 사는 친구들" },
+                  { key: "notifications", icon: Bell, label: "도착한 마음" },
+                ] as const
+              ).map((n) => (
+                <button
+                  key={n.key}
+                  className={view === n.key ? "active" : ""}
+                  onClick={() => {
+                    if (n.key === "space") {
+                      const s = world.spaces.find(
+                        (s) => s.owner === world.me && s.kind === "interior",
+                      );
+                      if (s) navigate("space", s.id);
+                      else setModal("create");
+                    } else navigate(n.key);
+                  }}
+                >
+                  <n.icon size={19} />
+                  <span>{n.label}</span>
+                  {n.key === "notifications" &&
+                    notifications.some((n) => !n.read) && (
+                      <i className="notification-dot" />
+                    )}
+                </button>
+              ))}
+            </nav>
+            <div className="sidebar-note">
+              <Flower2 size={25} />
+              <p>
+                잠깐 쉬어가도 괜찮아.
+                <br />
+                여기는 우리의 섬이니까.
+              </p>
+              <span>조금 느려도 좋은 곳</span>
+            </div>
+            <div className="sidebar-bottom">
               <button
-                className="btn small primary"
-                disabled={busy}
-                onClick={async () => {
-                  if (
-                    await act({ type: "invite.accept", token: pendingToken })
-                  ) {
-                    setPendingToken("");
-                    sessionStorage.removeItem("isola-pending-invite");
-                    tell("섬에 오신 걸 환영해요!");
+                className="settings-link"
+                onClick={() => navigate("settings")}
+              >
+                <Settings size={17} />
+                설정
+              </button>
+              <button
+                className="profile-button"
+                onClick={() => setModal("profile")}
+              >
+                <AvatarDot profile={me} />
+                <div>
+                  <strong>{me?.name ?? "새로운 이웃"}</strong>
+                  <span>나답게, 자유롭게</span>
+                </div>
+                <MoreHorizontal size={18} />
+              </button>
+            </div>
+          </aside>
+          <div className="main-area">
+            <header className="topbar">
+              <button
+                className="icon-btn mobile-menu"
+                aria-label="메뉴 열기"
+                onClick={() => setMenu(!menu)}
+              >
+                <Menu />
+              </button>
+              <div className="breadcrumb">
+                <span>나의 작은 세계</span>
+                <ChevronRight size={14} />
+                <strong>
+                  {
+                    {
+                      island: "우리의 섬",
+                      space: mine
+                        ? "나의 공간"
+                        : `${owner?.name ?? "친구"}의 공간`,
+                      archive: "취향 서랍",
+                      people: "함께 사는 친구들",
+                      notifications: "도착한 마음",
+                      settings: "설정",
+                    }[view]
                   }
-                }}
-              >
-                초대 수락하기
-              </button>
-              <button
-                className="btn small subtle"
-                onClick={() => {
-                  setPendingToken("");
-                  sessionStorage.removeItem("isola-pending-invite");
-                }}
-              >
-                나중에
-              </button>
-            </div>
-          )}
-          {!world.island ? (
-            <div className="empty welcome">
-              <Flower2 size={48} />
-              <p className="eyebrow">YOUR STORY STARTS HERE</p>
-              <h1>나만의 작은 세계를 시작해요.</h1>
-              <p>혼자 시작해도 좋아요. 친구들은 나중에 초대할 수 있어요.</p>
-              <button
-                className="btn primary"
-                onClick={() => setModal("create")}
-              >
-                첫 번째 섬 만들기 <Plus size={16} />
-              </button>
-            </div>
-          ) : (
-            <>
-              {(view === "island" || view === "space") && (
-                <>
-                  <div className="page-heading">
-                    <div>
-                      <p className="eyebrow">
-                        {view === "island"
-                          ? "SOMEWHERE WE BELONG"
-                          : editing
-                            ? "MAKE IT YOURS"
-                            : "A LITTLE PIECE OF YOU"}
-                      </p>
-                      <h1>
-                        {view === "island"
-                          ? "오늘도, 우리의 섬에서."
-                          : editing
-                            ? "마음 가는 대로 꾸며요."
-                            : `${mine ? "나" : (owner?.name ?? "친구")}의 ${space?.kind === "garden" ? "작은 정원" : "포근한 집"}`}
-                        <span className="heading-flower">✳</span>
-                      </h1>
-                      <p>
-                        {view === "island"
-                          ? "좋아하는 것을 모으고, 서로의 세계를 천천히 알아가는 곳."
-                          : editing
-                            ? "소품을 고르고 바닥을 눌러 놓아 보세요."
-                            : mine
-                              ? "나를 닮은 것들로 채워지는 작은 공간."
-                              : "잠시 머물며 친구의 취향을 만나 보세요."}
-                      </p>
-                    </div>
-                    <div className="heading-actions">
-                      {view === "island" ? (
-                        <button
-                          className="btn outline"
-                          onClick={() => setModal("invite")}
-                        >
-                          <Plus size={16} /> 친구 초대하기
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            className="btn subtle"
-                            onClick={() => navigate("island")}
-                          >
-                            <ArrowLeft size={15} />
-                            섬으로
-                          </button>
-                          {mine && (
-                            <button
-                              className="btn primary"
-                              onClick={() => {
-                                if (editing) {
-                                  if (
-                                    JSON.stringify(draft) !==
-                                      JSON.stringify(space?.draft) &&
-                                    !confirm("저장하지 않은 변경을 버릴까요?")
-                                  )
-                                    return;
-                                  setEditing(false);
-                                } else {
-                                  setDraft(structuredClone(space!.draft));
-                                  setEditing(true);
-                                  setSelected(undefined);
-                                }
-                              }}
-                            >
-                              <Palette size={16} />
-                              {editing ? "편집 끝내기" : "공간 꾸미기"}
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div
-                    className={`world-layout ${editing ? "with-editor" : ""}`}
+                </strong>
+              </div>
+              <div className="topbar-actions">
+                <span className="private-chip">
+                  <LockKeyhole size={13} /> 초대 전용
+                </span>
+                <button
+                  className="icon-btn"
+                  aria-label="알림"
+                  onClick={() => navigate("notifications")}
+                >
+                  <Bell size={19} />
+                </button>
+                <button
+                  className="avatar-button"
+                  aria-label="내 프로필"
+                  onClick={() => setModal("profile")}
+                >
+                  <AvatarDot profile={me} small />
+                </button>
+              </div>
+            </header>
+            {demo && (
+              <div className="demo-banner">
+                <span>
+                  <Sparkles size={13} /> 샘플 섬 · 변경사항은 이 브라우저에만
+                  저장돼요
+                </span>
+                <button onClick={signOut}>
+                  실제 계정으로 시작하기 <ArrowRight size={13} />
+                </button>
+              </div>
+            )}
+            {offline && (
+              <div className="notice">
+                인터넷 연결이 끊겼어요. 연결 후 다시 저장해 주세요.
+              </div>
+            )}
+            <main className="workspace">
+              {pendingToken && !demo && (
+                <div className="notice">
+                  섬 초대가 도착했어요.
+                  <button
+                    className="btn small primary"
+                    disabled={busy}
+                    onClick={async () => {
+                      if (
+                        await act({
+                          type: "invite.accept",
+                          token: pendingToken,
+                        })
+                      ) {
+                        setPendingToken("");
+                        sessionStorage.removeItem("isola-pending-invite");
+                        tell("섬에 오신 걸 환영해요!");
+                      }
+                    }}
                   >
-                    <section className="world-card" aria-label="3D 공간">
-                      <div className="world-overlay top">
-                        <span className="weather">
-                          <Sun size={17} />
-                          <strong>느린 오후</strong>
-                          <span>마음이 쉬어가는 시간</span>
-                        </span>
-                        <div className="segmented">
-                          <button
-                            className={!listMode ? "selected" : ""}
-                            aria-label="3D 보기"
-                            onClick={() => setListMode(false)}
-                          >
-                            <LayoutGrid size={16} />
-                          </button>
-                          <button
-                            className={listMode ? "selected" : ""}
-                            aria-label="목록 보기"
-                            onClick={() => setListMode(true)}
-                          >
-                            <List size={17} />
-                          </button>
-                        </div>
-                      </div>
-                      {listMode ? (
-                        <div className="world-list">
-                          <h2>
+                    초대 수락하기
+                  </button>
+                  <button
+                    className="btn small subtle"
+                    onClick={() => {
+                      setPendingToken("");
+                      sessionStorage.removeItem("isola-pending-invite");
+                    }}
+                  >
+                    나중에
+                  </button>
+                </div>
+              )}
+              {!world.island ? (
+                <div className="empty welcome">
+                  <Flower2 size={48} />
+                  <p className="eyebrow">YOUR STORY STARTS HERE</p>
+                  <h1>나만의 작은 세계를 시작해요.</h1>
+                  <p>혼자 시작해도 좋아요. 친구들은 나중에 초대할 수 있어요.</p>
+                  <button
+                    className="btn primary"
+                    onClick={() => setModal("create")}
+                  >
+                    첫 번째 섬 만들기 <Plus size={16} />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {(view === "island" || view === "space") && (
+                    <>
+                      <div className="page-heading">
+                        <div>
+                          <p className="eyebrow">
                             {view === "island"
-                              ? "섬의 작은 집들"
-                              : "공간에 놓인 것들"}
-                          </h2>
-                          {view === "island"
-                            ? world.members
-                                .filter((m) => !world.blocks.includes(m.user))
-                                .map((m) => (
-                                  <button
-                                    key={m.user}
-                                    className="list-row"
-                                    onClick={() => {
-                                      const s = world.spaces.find(
-                                        (s) =>
-                                          s.owner === m.user &&
-                                          s.kind === "interior",
-                                      );
-                                      if (s) visit(s.id);
-                                    }}
-                                  >
-                                    <AvatarDot
-                                      profile={world.profiles.find(
-                                        (p) => p.id === m.user,
-                                      )}
-                                    />
-                                    <span>
-                                      {
-                                        world.profiles.find(
-                                          (p) => p.id === m.user,
-                                        )?.name
-                                      }
-                                      의 집
-                                    </span>
-                                    <ArrowRight size={16} />
-                                  </button>
-                                ))
-                            : (editing ? draft : (space?.published ?? [])).map(
-                                (p) => (
-                                  <button
-                                    className="list-row"
-                                    key={p.id}
-                                    onClick={() => {
-                                      if (editing) setSelected(p.id);
-                                      else if (p.itemId) setDetail(p.itemId);
-                                    }}
-                                  >
-                                    <span>
-                                      {
-                                        catalog.find((a) => a.id === p.asset)
-                                          ?.emoji
-                                      }
-                                    </span>
-                                    <span>
-                                      {
-                                        catalog.find((a) => a.id === p.asset)
-                                          ?.name
-                                      }
-                                      {p.itemId
-                                        ? " · " +
-                                          (visibleItems.find(
-                                            (i) => i.id === p.itemId,
-                                          )?.title ?? "비공개 기록")
-                                        : ""}
-                                    </span>
-                                    <small>
-                                      {p.x}, {p.z}
-                                    </small>
-                                  </button>
-                                ),
-                              )}
-                          {view === "space" &&
-                            !(editing ? draft : (space?.published ?? []))
-                              .length && (
-                              <p>
-                                아직 소품이 없어요. 첫 번째 취향을 놓아 보세요.
-                              </p>
-                            )}
+                              ? "SOMEWHERE WE BELONG"
+                              : editing
+                                ? "MAKE IT YOURS"
+                                : "A LITTLE PIECE OF YOU"}
+                          </p>
+                          <h1>
+                            {view === "island"
+                              ? "오늘도, 우리의 섬에서."
+                              : editing
+                                ? "마음 가는 대로 꾸며요."
+                                : `${mine ? "나" : (owner?.name ?? "친구")}의 ${space?.kind === "garden" ? "작은 정원" : "포근한 집"}`}
+                            <span className="heading-flower">✳</span>
+                          </h1>
+                          <p>
+                            {view === "island"
+                              ? "좋아하는 것을 모으고, 서로의 세계를 천천히 알아가는 곳."
+                              : editing
+                                ? "소품을 고르고 바닥을 눌러 놓아 보세요."
+                                : mine
+                                  ? "나를 닮은 것들로 채워지는 작은 공간."
+                                  : "잠시 머물며 친구의 취향을 만나 보세요."}
+                          </p>
                         </div>
-                      ) : (
-                        <div className="canvas-wrap">
-                          <Scene
-                            key={spaceId ?? "island"}
-                            world={world}
-                            spaceId={view === "space" ? spaceId : undefined}
-                            placements={
-                              editing
-                                ? draft
-                                : space?.published.filter(
-                                    (p) =>
-                                      !p.itemId ||
-                                      visibleItems.some(
-                                        (i) => i.id === p.itemId,
-                                      ),
-                                  )
-                            }
-                            onVisit={visit}
-                            onSelect={(id) => {
-                              if (editing) setSelected(id);
-                              else {
-                                const p = space?.published.find(
-                                  (p) => p.id === id,
-                                );
-                                if (p?.itemId) setDetail(p.itemId);
-                              }
-                            }}
-                            onCell={add}
-                            editing={editing}
-                            quality={quality}
-                            onError={() => {
-                              setListMode(true);
-                              tell("3D 대신 목록으로 편하게 둘러볼 수 있어요.");
-                            }}
-                          />
-                        </div>
-                      )}
-                      <div className="world-overlay bottom">
-                        <span className="scene-hint">
-                          <span className="pulse-dot" />
-                          {editing
-                            ? "바닥을 눌러 소품 놓기"
-                            : listMode
-                              ? "목록에서 공간과 취향을 만나세요"
-                              : "바닥을 눌러 산책 · 집을 눌러 방문"}
-                        </span>
-                        <button
-                          className="sound-button"
-                          aria-label="배경음 없음"
-                          title="지금은 고요한 섬이에요"
-                          onClick={() =>
-                            tell("지금은 배경음 없이 고요하게 머무는 섬이에요.")
-                          }
-                        >
-                          <VolumeX size={17} />
-                        </button>
-                      </div>
-                    </section>
-                    {editing && (
-                      <aside className="editor-panel">
-                        <h3>
-                          <Palette size={17} /> 작은 공간 꾸미기
-                        </h3>
-                        <p className="micro">
-                          {draft.length}/60개 · 저장 후 공개할 수 있어요
-                        </p>
-                        <div className="button-row">
-                          <button
-                            className="btn outline small"
-                            disabled={!undoStack.length}
-                            onClick={() => {
-                              setRedoStack((h) => [
-                                ...h,
-                                structuredClone(draft),
-                              ]);
-                              setDraft(undoStack.at(-1)!);
-                              setUndoStack((h) => h.slice(0, -1));
-                              setSelected(undefined);
-                            }}
-                          >
-                            되돌리기
-                          </button>
-                          <button
-                            className="btn outline small"
-                            disabled={!redoStack.length}
-                            onClick={() => {
-                              setUndoStack((h) => [
-                                ...h,
-                                structuredClone(draft),
-                              ]);
-                              setDraft(redoStack.at(-1)!);
-                              setRedoStack((h) => h.slice(0, -1));
-                              setSelected(undefined);
-                            }}
-                          >
-                            다시 실행
-                          </button>
-                        </div>
-                        <div className="catalog-grid">
-                          {catalog.map((a) => (
+                        <div className="heading-actions">
+                          {view === "island" ? (
                             <button
-                              key={a.id}
-                              className={asset === a.id ? "chosen" : ""}
-                              onClick={() => {
-                                setAsset(a.id);
-                                setSelected(undefined);
-                              }}
+                              className="btn outline"
+                              onClick={() => setModal("invite")}
                             >
-                              <span>{a.emoji}</span>
-                              {a.name}
+                              <Plus size={16} /> 친구 초대하기
                             </button>
-                          ))}
+                          ) : (
+                            <>
+                              <button
+                                className="btn subtle"
+                                onClick={() => navigate("island")}
+                              >
+                                <ArrowLeft size={15} />
+                                섬으로
+                              </button>
+                              {mine && (
+                                <button
+                                  className="btn primary"
+                                  onClick={() => {
+                                    if (editing) {
+                                      if (
+                                        JSON.stringify(draft) !==
+                                          JSON.stringify(space?.draft) &&
+                                        !confirm(
+                                          "저장하지 않은 변경을 버릴까요?",
+                                        )
+                                      )
+                                        return;
+                                      setEditing(false);
+                                    } else {
+                                      setDraft(structuredClone(space!.draft));
+                                      setEditing(true);
+                                      setSelected(undefined);
+                                    }
+                                  }}
+                                >
+                                  <Palette size={16} />
+                                  {editing ? "편집 끝내기" : "공간 꾸미기"}
+                                </button>
+                              )}
+                            </>
+                          )}
                         </div>
-                        <form
-                          className="coordinates"
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            const f = new FormData(e.currentTarget);
-                            add(Number(f.get("x")), Number(f.get("z")));
-                          }}
-                        >
-                          <label>
-                            X
-                            <input
-                              name="x"
-                              aria-label="배치 X 좌표"
-                              type="number"
-                              min="0"
-                              max={space?.kind === "garden" ? 15 : 11}
-                              defaultValue="2"
-                              required
-                            />
-                          </label>
-                          <label>
-                            Z
-                            <input
-                              name="z"
-                              aria-label="배치 Z 좌표"
-                              type="number"
-                              min="0"
-                              max={space?.kind === "garden" ? 15 : 11}
-                              defaultValue="2"
-                              required
-                            />
-                          </label>
-                          <button className="btn outline small" type="submit">
-                            놓기
-                          </button>
-                        </form>
-                        {selectedPlacement && (
-                          <div className="selection">
-                            <strong>
-                              {
-                                catalog.find(
-                                  (a) => a.id === selectedPlacement.asset,
-                                )?.name
+                      </div>
+                      <div
+                        className={`world-layout ${editing ? "with-editor" : ""}`}
+                      >
+                        <section className="world-card" aria-label="3D 공간">
+                          <div className="world-overlay top">
+                            <span className="weather">
+                              <Sun size={17} />
+                              <strong>느린 오후</strong>
+                              <span>마음이 쉬어가는 시간</span>
+                            </span>
+                            <div className="segmented">
+                              <button
+                                className={!listMode ? "selected" : ""}
+                                aria-label="3D 보기"
+                                onClick={() => setListMode(false)}
+                              >
+                                <LayoutGrid size={16} />
+                              </button>
+                              <button
+                                className={listMode ? "selected" : ""}
+                                aria-label="목록 보기"
+                                onClick={() => setListMode(true)}
+                              >
+                                <List size={17} />
+                              </button>
+                            </div>
+                          </div>
+                          {listMode ? (
+                            <div className="world-list">
+                              <h2>
+                                {view === "island"
+                                  ? "섬의 작은 집들"
+                                  : "공간에 놓인 것들"}
+                              </h2>
+                              {view === "island"
+                                ? world.members
+                                    .filter(
+                                      (m) => !world.blocks.includes(m.user),
+                                    )
+                                    .map((m) => (
+                                      <button
+                                        key={m.user}
+                                        className="list-row"
+                                        onClick={() => {
+                                          const s = world.spaces.find(
+                                            (s) =>
+                                              s.owner === m.user &&
+                                              s.kind === "interior",
+                                          );
+                                          if (s) visit(s.id);
+                                        }}
+                                      >
+                                        <AvatarDot
+                                          profile={world.profiles.find(
+                                            (p) => p.id === m.user,
+                                          )}
+                                        />
+                                        <span>
+                                          {
+                                            world.profiles.find(
+                                              (p) => p.id === m.user,
+                                            )?.name
+                                          }
+                                          의 집
+                                        </span>
+                                        <ArrowRight size={16} />
+                                      </button>
+                                    ))
+                                : (editing
+                                    ? draft
+                                    : (space?.published ?? [])
+                                  ).map((p) => (
+                                    <button
+                                      className="list-row"
+                                      key={p.id}
+                                      onClick={() => {
+                                        if (editing) setSelected(p.id);
+                                        else if (p.itemId) setDetail(p.itemId);
+                                      }}
+                                    >
+                                      <span>
+                                        {
+                                          catalog.find((a) => a.id === p.asset)
+                                            ?.emoji
+                                        }
+                                      </span>
+                                      <span>
+                                        {
+                                          catalog.find((a) => a.id === p.asset)
+                                            ?.name
+                                        }
+                                        {p.itemId
+                                          ? " · " +
+                                            (visibleItems.find(
+                                              (i) => i.id === p.itemId,
+                                            )?.title ?? "비공개 기록")
+                                          : ""}
+                                      </span>
+                                      <small>
+                                        {p.x}, {p.z}
+                                      </small>
+                                    </button>
+                                  ))}
+                              {view === "space" &&
+                                !(editing ? draft : (space?.published ?? []))
+                                  .length && (
+                                  <p>
+                                    아직 소품이 없어요. 첫 번째 취향을 놓아
+                                    보세요.
+                                  </p>
+                                )}
+                            </div>
+                          ) : (
+                            <div className="canvas-wrap">
+                              <Scene
+                                key={spaceId ?? "island"}
+                                world={world}
+                                spaceId={view === "space" ? spaceId : undefined}
+                                placements={
+                                  editing
+                                    ? draft
+                                    : space?.published.filter(
+                                        (p) =>
+                                          !p.itemId ||
+                                          visibleItems.some(
+                                            (i) => i.id === p.itemId,
+                                          ),
+                                      )
+                                }
+                                onVisit={visit}
+                                onSelect={(id) => {
+                                  if (editing) setSelected(id);
+                                  else {
+                                    const p = space?.published.find(
+                                      (p) => p.id === id,
+                                    );
+                                    if (p?.itemId) setDetail(p.itemId);
+                                  }
+                                }}
+                                onCell={add}
+                                editing={editing}
+                                quality={quality}
+                                onError={() => {
+                                  setListMode(true);
+                                  tell(
+                                    "3D 대신 목록으로 편하게 둘러볼 수 있어요.",
+                                  );
+                                }}
+                              />
+                            </div>
+                          )}
+                          <div className="world-overlay bottom">
+                            <span className="scene-hint">
+                              <span className="pulse-dot" />
+                              {editing
+                                ? "바닥을 눌러 소품 놓기"
+                                : listMode
+                                  ? "목록에서 공간과 취향을 만나세요"
+                                  : "바닥을 눌러 산책 · 집을 눌러 방문"}
+                            </span>
+                            <button
+                              className="sound-button"
+                              aria-label="배경음 없음"
+                              title="지금은 고요한 섬이에요"
+                              onClick={() =>
+                                tell(
+                                  "지금은 배경음 없이 고요하게 머무는 섬이에요.",
+                                )
                               }
-                            </strong>
+                            >
+                              <VolumeX size={17} />
+                            </button>
+                          </div>
+                        </section>
+                        {editing && (
+                          <aside className="editor-panel">
+                            <h3>
+                              <Palette size={17} /> 작은 공간 꾸미기
+                            </h3>
+                            <p className="micro">
+                              {draft.length}/60개 · 저장 후 공개할 수 있어요
+                            </p>
                             <div className="button-row">
                               <button
                                 className="btn outline small"
-                                onClick={() =>
-                                  modify({
-                                    rotation:
-                                      (selectedPlacement.rotation + 1) % 4,
-                                  })
-                                }
-                              >
-                                <RotateCw size={14} />
-                                회전
-                              </button>
-                              <button
-                                className="btn outline small"
+                                disabled={!undoStack.length}
                                 onClick={() => {
-                                  setDraft(
-                                    draft.filter((p) => p.id !== selected),
-                                  );
+                                  setRedoStack((h) => [
+                                    ...h,
+                                    structuredClone(draft),
+                                  ]);
+                                  setDraft(undoStack.at(-1)!);
+                                  setUndoStack((h) => h.slice(0, -1));
                                   setSelected(undefined);
                                 }}
                               >
-                                <Trash2 size={14} />
-                                빼기
+                                되돌리기
+                              </button>
+                              <button
+                                className="btn outline small"
+                                disabled={!redoStack.length}
+                                onClick={() => {
+                                  setUndoStack((h) => [
+                                    ...h,
+                                    structuredClone(draft),
+                                  ]);
+                                  setDraft(redoStack.at(-1)!);
+                                  setRedoStack((h) => h.slice(0, -1));
+                                  setSelected(undefined);
+                                }}
+                              >
+                                다시 실행
                               </button>
                             </div>
-                            <div className="coordinates">
+                            <div className="catalog-grid">
+                              {catalog.map((a) => (
+                                <button
+                                  key={a.id}
+                                  className={asset === a.id ? "chosen" : ""}
+                                  onClick={() => {
+                                    setAsset(a.id);
+                                    setSelected(undefined);
+                                  }}
+                                >
+                                  <span>{a.emoji}</span>
+                                  {a.name}
+                                </button>
+                              ))}
+                            </div>
+                            <form
+                              className="coordinates"
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                const f = new FormData(e.currentTarget);
+                                add(Number(f.get("x")), Number(f.get("z")));
+                              }}
+                            >
                               <label>
                                 X
                                 <input
+                                  name="x"
+                                  aria-label="배치 X 좌표"
                                   type="number"
-                                  aria-label="선택 소품 X 좌표"
-                                  value={selectedPlacement.x}
-                                  onChange={(e) =>
-                                    modify({ x: Number(e.target.value) })
-                                  }
+                                  min="0"
+                                  max={space?.kind === "garden" ? 15 : 11}
+                                  defaultValue="2"
+                                  required
                                 />
                               </label>
                               <label>
                                 Z
                                 <input
+                                  name="z"
+                                  aria-label="배치 Z 좌표"
                                   type="number"
-                                  aria-label="선택 소품 Z 좌표"
-                                  value={selectedPlacement.z}
-                                  onChange={(e) =>
-                                    modify({ z: Number(e.target.value) })
-                                  }
+                                  min="0"
+                                  max={space?.kind === "garden" ? 15 : 11}
+                                  defaultValue="2"
+                                  required
                                 />
                               </label>
+                              <button
+                                className="btn outline small"
+                                type="submit"
+                              >
+                                놓기
+                              </button>
+                            </form>
+                            {selectedPlacement && (
+                              <div className="selection">
+                                <strong>
+                                  {
+                                    catalog.find(
+                                      (a) => a.id === selectedPlacement.asset,
+                                    )?.name
+                                  }
+                                </strong>
+                                <div className="button-row">
+                                  <button
+                                    className="btn outline small"
+                                    onClick={() =>
+                                      modify({
+                                        rotation:
+                                          (selectedPlacement.rotation + 1) % 4,
+                                      })
+                                    }
+                                  >
+                                    <RotateCw size={14} />
+                                    회전
+                                  </button>
+                                  <button
+                                    className="btn outline small"
+                                    onClick={() => {
+                                      setDraft(
+                                        draft.filter((p) => p.id !== selected),
+                                      );
+                                      setSelected(undefined);
+                                    }}
+                                  >
+                                    <Trash2 size={14} />
+                                    빼기
+                                  </button>
+                                </div>
+                                <div className="coordinates">
+                                  <label>
+                                    X
+                                    <input
+                                      type="number"
+                                      aria-label="선택 소품 X 좌표"
+                                      value={selectedPlacement.x}
+                                      onChange={(e) =>
+                                        modify({ x: Number(e.target.value) })
+                                      }
+                                    />
+                                  </label>
+                                  <label>
+                                    Z
+                                    <input
+                                      type="number"
+                                      aria-label="선택 소품 Z 좌표"
+                                      value={selectedPlacement.z}
+                                      onChange={(e) =>
+                                        modify({ z: Number(e.target.value) })
+                                      }
+                                    />
+                                  </label>
+                                </div>
+                                {selectedPlacement.asset === "display" && (
+                                  <label>
+                                    전시할 기록
+                                    <select
+                                      value={selectedPlacement.itemId ?? ""}
+                                      onChange={(e) =>
+                                        modify({
+                                          itemId: e.target.value || undefined,
+                                        })
+                                      }
+                                    >
+                                      <option value="">기록 선택</option>
+                                      {world.items
+                                        .filter(
+                                          (i) =>
+                                            i.owner === world.me &&
+                                            i.visibility === "island",
+                                        )
+                                        .map((i) => (
+                                          <option key={i.id} value={i.id}>
+                                            {i.title}
+                                          </option>
+                                        ))}
+                                    </select>
+                                    <span className="micro">
+                                      섬에 공개한 내 기록만 연결할 수 있어요.
+                                    </span>
+                                  </label>
+                                )}
+                              </div>
+                            )}
+                            <button
+                              className="btn outline full"
+                              disabled={busy}
+                              onClick={async () => {
+                                if (
+                                  await act({
+                                    type: "space.save",
+                                    id: spaceId,
+                                    revision: space?.revision,
+                                    placements: draft,
+                                  })
+                                )
+                                  tell("초안을 저장했어요.");
+                              }}
+                            >
+                              초안 저장
+                            </button>
+                            <button
+                              className="btn primary full"
+                              disabled={
+                                busy ||
+                                JSON.stringify(draft) !==
+                                  JSON.stringify(space?.draft)
+                              }
+                              onClick={async () => {
+                                if (
+                                  await act({
+                                    type: "space.publish",
+                                    id: spaceId,
+                                    revision: space?.revision,
+                                  })
+                                ) {
+                                  setEditing(false);
+                                  tell("친구들에게 공간을 공개했어요.");
+                                }
+                              }}
+                            >
+                              <Check size={16} />섬 친구들에게 공개
+                            </button>
+                          </aside>
+                        )}
+                      </div>
+                      {view === "island" ? (
+                        <>
+                          <div className="island-footer">
+                            <div className="resident-stack">
+                              {world.profiles
+                                .filter((p) => !world.blocks.includes(p.id))
+                                .slice(0, 4)
+                                .map((p) => (
+                                  <AvatarDot key={p.id} profile={p} small />
+                                ))}
                             </div>
-                            {selectedPlacement.asset === "display" && (
-                              <label>
-                                전시할 기록
+                            <span>
+                              <strong>{world.members.length}명</strong>이 함께
+                              가꾸는 작은 낙원
+                            </span>
+                            <button onClick={() => navigate("people")}>
+                              우리 이웃들 <ArrowRight size={14} />
+                            </button>
+                            <span className="quiet-note">
+                              <Leaf size={14} /> 각자의 속도로 머물러요
+                            </span>
+                          </div>
+                          <div className="section-heading">
+                            <div>
+                              <p className="eyebrow">LITTLE THINGS WE LOVE</p>
+                              <h2>
+                                섬에 놓인 취향들{" "}
+                                <span>
+                                  {
+                                    visibleItems.filter(
+                                      (i) => i.visibility === "island",
+                                    ).length
+                                  }
+                                </span>
+                              </h2>
+                            </div>
+                            <button
+                              className="text-button"
+                              onClick={() => {
+                                setArchiveScope("island");
+                                navigate("archive");
+                              }}
+                            >
+                              모두 둘러보기 <ArrowRight size={15} />
+                            </button>
+                          </div>
+                          <div className="item-grid home-grid">
+                            {visibleItems
+                              .filter((i) => i.visibility === "island")
+                              .slice(0, 4)
+                              .map((i) => (
+                                <ItemCard
+                                  key={i.id}
+                                  item={i}
+                                  profile={world.profiles.find(
+                                    (p) => p.id === i.owner,
+                                  )}
+                                  onClick={() => setDetail(i.id)}
+                                />
+                              ))}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="space-toolbar">
+                            <div className="button-row">
+                              {(["interior", "garden"] as const).map((kind) => (
+                                <button
+                                  key={kind}
+                                  className={`btn small ${space?.kind === kind ? "primary" : "outline"}`}
+                                  onClick={() => {
+                                    const s = world.spaces.find(
+                                      (s) =>
+                                        s.owner === space?.owner &&
+                                        s.kind === kind,
+                                    );
+                                    if (s) visit(s.id);
+                                  }}
+                                >
+                                  {kind === "interior" ? (
+                                    <Home size={15} />
+                                  ) : (
+                                    <Flower2 size={15} />
+                                  )}{" "}
+                                  {kind === "interior" ? "집 안" : "정원"}
+                                </button>
+                              ))}
+                            </div>
+                            {mine && (
+                              <label className="inline-label">
+                                공개 범위
                                 <select
-                                  value={selectedPlacement.itemId ?? ""}
+                                  aria-label="공간 공개 범위"
+                                  value={space?.visibility}
                                   onChange={(e) =>
-                                    modify({
-                                      itemId: e.target.value || undefined,
+                                    act({
+                                      type: "space.visibility",
+                                      id: spaceId,
+                                      visibility: e.target.value,
                                     })
                                   }
                                 >
-                                  <option value="">기록 선택</option>
-                                  {world.items
-                                    .filter(
-                                      (i) =>
-                                        i.owner === world.me &&
-                                        i.visibility === "island",
-                                    )
-                                    .map((i) => (
-                                      <option key={i.id} value={i.id}>
-                                        {i.title}
-                                      </option>
-                                    ))}
+                                  <option value="private">나만 보기</option>
+                                  <option value="island">섬 친구들</option>
                                 </select>
-                                <span className="micro">
-                                  섬에 공개한 내 기록만 연결할 수 있어요.
-                                </span>
                               </label>
                             )}
                           </div>
-                        )}
-                        <button
-                          className="btn outline full"
-                          disabled={busy}
-                          onClick={async () => {
-                            if (
-                              await act({
-                                type: "space.save",
-                                id: spaceId,
-                                revision: space?.revision,
-                                placements: draft,
-                              })
-                            )
-                              tell("초안을 저장했어요.");
-                          }}
-                        >
-                          초안 저장
-                        </button>
-                        <button
-                          className="btn primary full"
-                          disabled={
-                            busy ||
-                            JSON.stringify(draft) !==
-                              JSON.stringify(space?.draft)
-                          }
-                          onClick={async () => {
-                            if (
-                              await act({
-                                type: "space.publish",
-                                id: spaceId,
-                                revision: space?.revision,
-                              })
-                            ) {
-                              setEditing(false);
-                              tell("친구들에게 공간을 공개했어요.");
-                            }
-                          }}
-                        >
-                          <Check size={16} />섬 친구들에게 공개
-                        </button>
-                      </aside>
-                    )}
-                  </div>
-                  {view === "island" ? (
+                          {space && (
+                            <Comments
+                              target={space.id}
+                              world={world}
+                              act={act}
+                              title="이 공간에 남긴 마음"
+                            />
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+                  {view === "archive" && (
                     <>
-                      <div className="island-footer">
-                        <div className="resident-stack">
-                          {world.profiles
-                            .filter((p) => !world.blocks.includes(p.id))
-                            .slice(0, 4)
-                            .map((p) => (
-                              <AvatarDot key={p.id} profile={p} small />
-                            ))}
-                        </div>
-                        <span>
-                          <strong>{world.members.length}명</strong>이 함께
-                          가꾸는 작은 낙원
-                        </span>
-                        <button onClick={() => navigate("people")}>
-                          우리 이웃들 <ArrowRight size={14} />
-                        </button>
-                        <span className="quiet-note">
-                          <Leaf size={14} /> 각자의 속도로 머물러요
-                        </span>
-                      </div>
-                      <div className="section-heading">
+                      <div className="page-heading">
                         <div>
-                          <p className="eyebrow">LITTLE THINGS WE LOVE</p>
-                          <h2>
-                            섬에 놓인 취향들{" "}
-                            <span>
-                              {
-                                visibleItems.filter(
-                                  (i) => i.visibility === "island",
-                                ).length
-                              }
-                            </span>
-                          </h2>
+                          <p className="eyebrow">A COLLECTION OF YOU</p>
+                          <h1>
+                            취향 서랍<span className="heading-flower">✳</span>
+                          </h1>
+                          <p>좋아서 간직한 것들. 하나씩 꺼내어 놓아요.</p>
                         </div>
-                        <button
-                          className="text-button"
-                          onClick={() => {
-                            setArchiveScope("island");
-                            navigate("archive");
-                          }}
-                        >
-                          모두 둘러보기 <ArrowRight size={15} />
+                        <button className="btn primary" onClick={openNew}>
+                          <Plus size={17} />
+                          취향 기록하기
                         </button>
                       </div>
-                      <div className="item-grid home-grid">
+                      <div className="archive-toolbar">
+                        <div className="tabs">
+                          <button
+                            className={archiveScope === "mine" ? "active" : ""}
+                            onClick={() => setArchiveScope("mine")}
+                          >
+                            나의 취향
+                          </button>
+                          <button
+                            className={
+                              archiveScope === "island" ? "active" : ""
+                            }
+                            onClick={() => setArchiveScope("island")}
+                          >
+                            섬의 취향
+                          </button>
+                        </div>
+                        <label className="search-box">
+                          <Search size={17} />
+                          <input
+                            aria-label="취향 검색"
+                            placeholder="제목, 감상, 태그로 찾기"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                          />
+                        </label>
+                      </div>
+                      <div className="filter-row">
+                        {(
+                          ["all", "book", "film", "quote", "whisky"] as const
+                        ).map((k) => (
+                          <button
+                            key={k}
+                            className={filter === k ? "active" : ""}
+                            onClick={() => setFilter(k)}
+                          >
+                            {k === "all"
+                              ? "모두"
+                              : categories[k].emoji + " " + categories[k].label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="item-grid">
                         {visibleItems
-                          .filter((i) => i.visibility === "island")
-                          .slice(0, 4)
+                          .filter(
+                            (i) =>
+                              (archiveScope === "mine"
+                                ? i.owner === world.me
+                                : i.visibility === "island") &&
+                              (filter === "all" || i.kind === filter) &&
+                              `${i.title} ${i.creator} ${i.note} ${i.tags.join(" ")}`
+                                .toLowerCase()
+                                .includes(search.toLowerCase()),
+                          )
                           .map((i) => (
                             <ItemCard
                               key={i.id}
@@ -1177,122 +1384,7 @@ export default function IsolaApp() {
                             />
                           ))}
                       </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="space-toolbar">
-                        <div className="button-row">
-                          {(["interior", "garden"] as const).map((kind) => (
-                            <button
-                              key={kind}
-                              className={`btn small ${space?.kind === kind ? "primary" : "outline"}`}
-                              onClick={() => {
-                                const s = world.spaces.find(
-                                  (s) =>
-                                    s.owner === space?.owner && s.kind === kind,
-                                );
-                                if (s) visit(s.id);
-                              }}
-                            >
-                              {kind === "interior" ? (
-                                <Home size={15} />
-                              ) : (
-                                <Flower2 size={15} />
-                              )}{" "}
-                              {kind === "interior" ? "집 안" : "정원"}
-                            </button>
-                          ))}
-                        </div>
-                        {mine && (
-                          <label className="inline-label">
-                            공개 범위
-                            <select
-                              aria-label="공간 공개 범위"
-                              value={space?.visibility}
-                              onChange={(e) =>
-                                act({
-                                  type: "space.visibility",
-                                  id: spaceId,
-                                  visibility: e.target.value,
-                                })
-                              }
-                            >
-                              <option value="private">나만 보기</option>
-                              <option value="island">섬 친구들</option>
-                            </select>
-                          </label>
-                        )}
-                      </div>
-                      {space && (
-                        <Comments
-                          target={space.id}
-                          world={world}
-                          act={act}
-                          title="이 공간에 남긴 마음"
-                        />
-                      )}
-                    </>
-                  )}
-                </>
-              )}
-              {view === "archive" && (
-                <>
-                  <div className="page-heading">
-                    <div>
-                      <p className="eyebrow">A COLLECTION OF YOU</p>
-                      <h1>
-                        취향 서랍<span className="heading-flower">✳</span>
-                      </h1>
-                      <p>좋아서 간직한 것들. 하나씩 꺼내어 놓아요.</p>
-                    </div>
-                    <button className="btn primary" onClick={openNew}>
-                      <Plus size={17} />
-                      취향 기록하기
-                    </button>
-                  </div>
-                  <div className="archive-toolbar">
-                    <div className="tabs">
-                      <button
-                        className={archiveScope === "mine" ? "active" : ""}
-                        onClick={() => setArchiveScope("mine")}
-                      >
-                        나의 취향
-                      </button>
-                      <button
-                        className={archiveScope === "island" ? "active" : ""}
-                        onClick={() => setArchiveScope("island")}
-                      >
-                        섬의 취향
-                      </button>
-                    </div>
-                    <label className="search-box">
-                      <Search size={17} />
-                      <input
-                        aria-label="취향 검색"
-                        placeholder="제목, 감상, 태그로 찾기"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                      />
-                    </label>
-                  </div>
-                  <div className="filter-row">
-                    {(["all", "book", "film", "quote", "whisky"] as const).map(
-                      (k) => (
-                        <button
-                          key={k}
-                          className={filter === k ? "active" : ""}
-                          onClick={() => setFilter(k)}
-                        >
-                          {k === "all"
-                            ? "모두"
-                            : categories[k].emoji + " " + categories[k].label}
-                        </button>
-                      ),
-                    )}
-                  </div>
-                  <div className="item-grid">
-                    {visibleItems
-                      .filter(
+                      {!visibleItems.some(
                         (i) =>
                           (archiveScope === "mine"
                             ? i.owner === world.me
@@ -1301,381 +1393,379 @@ export default function IsolaApp() {
                           `${i.title} ${i.creator} ${i.note} ${i.tags.join(" ")}`
                             .toLowerCase()
                             .includes(search.toLowerCase()),
-                      )
-                      .map((i) => (
-                        <ItemCard
-                          key={i.id}
-                          item={i}
-                          profile={world.profiles.find((p) => p.id === i.owner)}
-                          onClick={() => setDetail(i.id)}
-                        />
-                      ))}
-                  </div>
-                  {!visibleItems.some(
-                    (i) =>
-                      (archiveScope === "mine"
-                        ? i.owner === world.me
-                        : i.visibility === "island") &&
-                      (filter === "all" || i.kind === filter) &&
-                      `${i.title} ${i.creator} ${i.note} ${i.tags.join(" ")}`
-                        .toLowerCase()
-                        .includes(search.toLowerCase()),
-                  ) && (
-                    <div className="empty">
-                      <BookOpen size={34} />
-                      <h2>아직 비어 있는 서랍이에요.</h2>
-                      <p>좋아하는 것 하나부터 모아 볼까요?</p>
-                      <button className="btn outline" onClick={openNew}>
-                        첫 취향 기록하기
-                      </button>
-                    </div>
+                      ) && (
+                        <div className="empty">
+                          <BookOpen size={34} />
+                          <h2>아직 비어 있는 서랍이에요.</h2>
+                          <p>좋아하는 것 하나부터 모아 볼까요?</p>
+                          <button className="btn outline" onClick={openNew}>
+                            첫 취향 기록하기
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
-                </>
-              )}
-              {view === "people" && (
-                <>
-                  <div className="page-heading">
-                    <div>
-                      <p className="eyebrow">OUR LITTLE NEIGHBORHOOD</p>
-                      <h1>함께 사는 친구들</h1>
-                      <p>
-                        서로 다른 취향이 모여 하나의 섬이 돼요.{" "}
-                        {world.members.length}/8명
-                      </p>
-                    </div>
-                    <button
-                      className="btn outline"
-                      onClick={() => setModal("invite")}
-                    >
-                      <Plus size={16} />
-                      친구 초대하기
-                    </button>
-                  </div>
-                  <div className="people-grid">
-                    {world.members.map((m) => {
-                      const p = world.profiles.find((p) => p.id === m.user);
-                      const blocked = world.blocks.includes(m.user);
-                      return (
-                        <article className="person-card" key={m.user}>
-                          <AvatarDot profile={blocked ? undefined : p} />
-                          <h2>
-                            {blocked ? "표시 제한된 멤버" : (p?.name ?? "이웃")}{" "}
-                            {m.user === world.me && <small>나</small>}
-                          </h2>
+                  {view === "people" && (
+                    <>
+                      <div className="page-heading">
+                        <div>
+                          <p className="eyebrow">OUR LITTLE NEIGHBORHOOD</p>
+                          <h1>함께 사는 친구들</h1>
                           <p>
-                            {blocked
-                              ? "차단한 이웃이에요."
-                              : p?.bio || "아직 소개를 적지 않았어요."}
+                            서로 다른 취향이 모여 하나의 섬이 돼요.{" "}
+                            {world.members.length}/8명
                           </p>
-                          {!blocked && p?.identity && (
-                            <span className="tag">{p.identity}</span>
-                          )}
-                          <div className="button-row">
-                            {!blocked && (
-                              <button
-                                className="btn outline small"
-                                onClick={() => {
-                                  const s = world.spaces.find(
-                                    (s) =>
-                                      s.owner === m.user &&
-                                      s.kind === "interior",
-                                  );
-                                  if (s) visit(s.id);
-                                }}
-                              >
-                                집에 놀러가기 <ArrowRight size={14} />
-                              </button>
-                            )}
-                            {m.user !== world.me && (
-                              <button
-                                className="text-button"
-                                onClick={() => {
-                                  if (
-                                    confirm(
-                                      blocked
-                                        ? "차단을 해제할까요?"
-                                        : "서로의 공간과 기록을 볼 수 없게 돼요. 차단할까요?",
-                                    )
-                                  )
-                                    act({
-                                      type: "block",
-                                      id: m.user,
-                                      blocked: !blocked,
-                                    });
-                                }}
-                              >
-                                {blocked ? "차단 해제" : "차단"}
-                              </button>
-                            )}
-                          </div>
-                          {world.island?.owner === world.me &&
-                            m.user !== world.me && (
-                              <details>
-                                <summary>섬 관리</summary>
-                                <div className="button-row">
+                        </div>
+                        <button
+                          className="btn outline"
+                          onClick={() => setModal("invite")}
+                        >
+                          <Plus size={16} />
+                          친구 초대하기
+                        </button>
+                      </div>
+                      <div className="people-grid">
+                        {world.members.map((m) => {
+                          const p = world.profiles.find((p) => p.id === m.user);
+                          const blocked = world.blocks.includes(m.user);
+                          return (
+                            <article className="person-card" key={m.user}>
+                              <AvatarDot profile={blocked ? undefined : p} />
+                              <h2>
+                                {blocked
+                                  ? "표시 제한된 멤버"
+                                  : (p?.name ?? "이웃")}{" "}
+                                {m.user === world.me && <small>나</small>}
+                              </h2>
+                              <p>
+                                {blocked
+                                  ? "차단한 이웃이에요."
+                                  : p?.bio || "아직 소개를 적지 않았어요."}
+                              </p>
+                              {!blocked && p?.identity && (
+                                <span className="tag">{p.identity}</span>
+                              )}
+                              <div className="button-row">
+                                {!blocked && (
+                                  <button
+                                    className="btn outline small"
+                                    onClick={() => {
+                                      const s = world.spaces.find(
+                                        (s) =>
+                                          s.owner === m.user &&
+                                          s.kind === "interior",
+                                      );
+                                      if (s) visit(s.id);
+                                    }}
+                                  >
+                                    집에 놀러가기 <ArrowRight size={14} />
+                                  </button>
+                                )}
+                                {m.user !== world.me && (
                                   <button
                                     className="text-button"
                                     onClick={() => {
                                       if (
-                                        confirm("이 친구에게 방장을 넘길까요?")
-                                      )
-                                        act({
-                                          type: "island.transfer",
-                                          id: m.user,
-                                        });
-                                    }}
-                                  >
-                                    방장 이전
-                                  </button>
-                                  <button
-                                    className="text-button danger"
-                                    onClick={() => {
-                                      if (
                                         confirm(
-                                          "이 친구를 섬에서 내보낼까요? 개인 공간이 제거돼요.",
+                                          blocked
+                                            ? "차단을 해제할까요?"
+                                            : "서로의 공간과 기록을 볼 수 없게 돼요. 차단할까요?",
                                         )
                                       )
                                         act({
-                                          type: "island.remove",
+                                          type: "block",
                                           id: m.user,
+                                          blocked: !blocked,
                                         });
                                     }}
                                   >
-                                    내보내기
+                                    {blocked ? "차단 해제" : "차단"}
                                   </button>
-                                </div>
-                              </details>
-                            )}
-                        </article>
-                      );
-                    })}
-                    <button
-                      className="person-card invite-card"
-                      onClick={() => setModal("invite")}
-                    >
-                      <Plus size={30} />
-                      <h2>비어 있는 작은 집</h2>
-                      <p>친구를 초대해 함께 채워요.</p>
-                    </button>
-                  </div>
-                </>
-              )}
-              {view === "notifications" && (
-                <>
-                  <div className="page-heading">
-                    <div>
-                      <p className="eyebrow">A NOTE FOR YOU</p>
-                      <h1>도착한 마음</h1>
-                      <p>친구가 남겨두고 간 작은 이야기.</p>
-                    </div>
-                    <button
-                      className="btn outline"
-                      onClick={() => act({ type: "notice.read" })}
-                    >
-                      모두 읽음
-                    </button>
-                  </div>
-                  {notifications.length ? (
-                    notifications.map((n) => (
-                      <button
-                        key={n.id}
-                        className="notification-row"
-                        onClick={() => {
-                          const i = visibleItems.find((i) => i.id === n.target);
-                          if (i) setDetail(i.id);
-                          else if (world.spaces.some((s) => s.id === n.target))
-                            visit(n.target);
-                          act({ type: "notice.read" });
-                        }}
-                      >
-                        <Mail />
-                        <span>
-                          <strong>
-                            {world.profiles.find((p) => p.id === n.actor)
-                              ?.name ?? "친구"}
-                          </strong>
-                          님이 마음을 남겼어요.
-                          <small>
-                            {new Date(n.created).toLocaleDateString("ko-KR")}
-                          </small>
-                        </span>
-                        {!n.read && <i className="notification-dot" />}
-                        <ChevronRight size={17} />
-                      </button>
-                    ))
-                  ) : (
-                    <div className="empty">
-                      <Mail size={42} />
-                      <h2>아직 도착한 마음이 없어요.</h2>
-                      <p>친구의 공간에 먼저 작은 인사를 남겨 볼까요?</p>
-                      <button
-                        className="btn outline"
-                        onClick={() => navigate("people")}
-                      >
-                        친구들 만나기
-                      </button>
-                    </div>
+                                )}
+                              </div>
+                              {world.island?.owner === world.me &&
+                                m.user !== world.me && (
+                                  <details>
+                                    <summary>섬 관리</summary>
+                                    <div className="button-row">
+                                      <button
+                                        className="text-button"
+                                        onClick={() => {
+                                          if (
+                                            confirm(
+                                              "이 친구에게 방장을 넘길까요?",
+                                            )
+                                          )
+                                            act({
+                                              type: "island.transfer",
+                                              id: m.user,
+                                            });
+                                        }}
+                                      >
+                                        방장 이전
+                                      </button>
+                                      <button
+                                        className="text-button danger"
+                                        onClick={() => {
+                                          if (
+                                            confirm(
+                                              "이 친구를 섬에서 내보낼까요? 개인 공간이 제거돼요.",
+                                            )
+                                          )
+                                            act({
+                                              type: "island.remove",
+                                              id: m.user,
+                                            });
+                                        }}
+                                      >
+                                        내보내기
+                                      </button>
+                                    </div>
+                                  </details>
+                                )}
+                            </article>
+                          );
+                        })}
+                        <button
+                          className="person-card invite-card"
+                          onClick={() => setModal("invite")}
+                        >
+                          <Plus size={30} />
+                          <h2>비어 있는 작은 집</h2>
+                          <p>친구를 초대해 함께 채워요.</p>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  {view === "notifications" && (
+                    <>
+                      <div className="page-heading">
+                        <div>
+                          <p className="eyebrow">A NOTE FOR YOU</p>
+                          <h1>도착한 마음</h1>
+                          <p>친구가 남겨두고 간 작은 이야기.</p>
+                        </div>
+                        <button
+                          className="btn outline"
+                          onClick={() => act({ type: "notice.read" })}
+                        >
+                          모두 읽음
+                        </button>
+                      </div>
+                      {notifications.length ? (
+                        notifications.map((n) => (
+                          <button
+                            key={n.id}
+                            className="notification-row"
+                            onClick={() => {
+                              const i = visibleItems.find(
+                                (i) => i.id === n.target,
+                              );
+                              if (i) setDetail(i.id);
+                              else if (
+                                world.spaces.some((s) => s.id === n.target)
+                              )
+                                visit(n.target);
+                              act({ type: "notice.read" });
+                            }}
+                          >
+                            <Mail />
+                            <span>
+                              <strong>
+                                {world.profiles.find((p) => p.id === n.actor)
+                                  ?.name ?? "친구"}
+                              </strong>
+                              님이 마음을 남겼어요.
+                              <small>
+                                {new Date(n.created).toLocaleDateString(
+                                  "ko-KR",
+                                )}
+                              </small>
+                            </span>
+                            {!n.read && <i className="notification-dot" />}
+                            <ChevronRight size={17} />
+                          </button>
+                        ))
+                      ) : (
+                        <div className="empty">
+                          <Mail size={42} />
+                          <h2>아직 도착한 마음이 없어요.</h2>
+                          <p>친구의 공간에 먼저 작은 인사를 남겨 볼까요?</p>
+                          <button
+                            className="btn outline"
+                            onClick={() => navigate("people")}
+                          >
+                            친구들 만나기
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {view === "settings" && (
+                    <>
+                      <div className="page-heading">
+                        <div>
+                          <p className="eyebrow">FEEL AT HOME</p>
+                          <h1>편안하게 머무는 방법</h1>
+                          <p>나에게 맞는 모습과 속도를 찾아요.</p>
+                        </div>
+                      </div>
+                      <div className="settings-grid">
+                        <section className="settings-card">
+                          <h2>나의 모습</h2>
+                          <p>
+                            어떤 모습이든 좋아요. 성별에 따른 제한은 없어요.
+                          </p>
+                          <button
+                            className="btn outline"
+                            onClick={() => setModal("profile")}
+                          >
+                            <Palette size={16} />
+                            프로필과 아바타 바꾸기
+                          </button>
+                        </section>
+                        <section className="settings-card">
+                          <h2>화면과 접근성</h2>
+                          <label>
+                            3D 품질
+                            <select
+                              value={quality}
+                              onChange={(e) => setQuality(e.target.value)}
+                            >
+                              <option value="normal">기본</option>
+                              <option value="low">
+                                가볍게 (그림자 줄이기)
+                              </option>
+                            </select>
+                          </label>
+                          <label className="check-label">
+                            <input
+                              type="checkbox"
+                              checked={listMode}
+                              onChange={(e) => setListMode(e.target.checked)}
+                            />{" "}
+                            3D 대신 목록으로 둘러보기
+                          </label>
+                          <p className="micro">
+                            기기의 모션 감소 설정을 따릅니다. 배경음은 꺼져
+                            있어요.
+                          </p>
+                        </section>
+                        <section className="settings-card">
+                          <h2>섬 설정</h2>
+                          {world.island?.owner === world.me ? (
+                            <form
+                              onSubmit={async (e) => {
+                                e.preventDefault();
+                                const f = new FormData(e.currentTarget);
+                                if (
+                                  await act({
+                                    type: "island.rename",
+                                    name: f.get("name"),
+                                  })
+                                )
+                                  tell("섬 이름을 바꿨어요.");
+                              }}
+                            >
+                              <label>
+                                섬 이름
+                                <input
+                                  name="name"
+                                  defaultValue={world.island.name}
+                                  required
+                                  maxLength={30}
+                                />
+                              </label>
+                              <button className="btn outline small">
+                                이름 저장
+                              </button>
+                            </form>
+                          ) : (
+                            <p>섬 관리 권한은 방장에게 있어요.</p>
+                          )}
+                          <button
+                            className="text-button danger"
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  "섬을 떠나면 내 공간이 제거되고 기록이 비공개로 바뀌어요. 계속할까요?",
+                                )
+                              )
+                                act({ type: "island.leave" });
+                            }}
+                          >
+                            섬 떠나기
+                          </button>
+                        </section>
+                        <section className="settings-card">
+                          <h2>내 데이터</h2>
+                          <p>내 취향과 공간 기록을 파일로 보관할 수 있어요.</p>
+                          <button
+                            className="btn outline"
+                            onClick={() => {
+                              const mine = {
+                                profile: me,
+                                items: world.items.filter(
+                                  (i) => i.owner === world.me,
+                                ),
+                                spaces: world.spaces.filter(
+                                  (s) => s.owner === world.me,
+                                ),
+                                comments: world.comments.filter(
+                                  (c) => c.author === world.me,
+                                ),
+                              };
+                              const u = URL.createObjectURL(
+                                new Blob([JSON.stringify(mine, null, 2)], {
+                                  type: "application/json",
+                                }),
+                              );
+                              const a = document.createElement("a");
+                              a.href = u;
+                              a.download = "isola-my-world.json";
+                              a.click();
+                              URL.revokeObjectURL(u);
+                            }}
+                          >
+                            <Download size={16} />내 기록 다운로드
+                          </button>
+                          <div className="button-row">
+                            <button className="text-button" onClick={signOut}>
+                              <LogOut size={15} />
+                              로그아웃
+                            </button>
+                            <button
+                              className="text-button danger"
+                              onClick={async () => {
+                                if (
+                                  confirm(
+                                    "계정 삭제를 요청할까요? 접근 권한이 회수되고 운영자의 삭제 처리를 기다립니다.",
+                                  )
+                                ) {
+                                  if (await act({ type: "account.delete" }))
+                                    await signOut();
+                                }
+                              }}
+                            >
+                              계정 삭제 요청
+                            </button>
+                          </div>
+                        </section>
+                      </div>
+                    </>
                   )}
                 </>
               )}
-              {view === "settings" && (
-                <>
-                  <div className="page-heading">
-                    <div>
-                      <p className="eyebrow">FEEL AT HOME</p>
-                      <h1>편안하게 머무는 방법</h1>
-                      <p>나에게 맞는 모습과 속도를 찾아요.</p>
-                    </div>
-                  </div>
-                  <div className="settings-grid">
-                    <section className="settings-card">
-                      <h2>나의 모습</h2>
-                      <p>어떤 모습이든 좋아요. 성별에 따른 제한은 없어요.</p>
-                      <button
-                        className="btn outline"
-                        onClick={() => setModal("profile")}
-                      >
-                        <Palette size={16} />
-                        프로필과 아바타 바꾸기
-                      </button>
-                    </section>
-                    <section className="settings-card">
-                      <h2>화면과 접근성</h2>
-                      <label>
-                        3D 품질
-                        <select
-                          value={quality}
-                          onChange={(e) => setQuality(e.target.value)}
-                        >
-                          <option value="normal">기본</option>
-                          <option value="low">가볍게 (그림자 줄이기)</option>
-                        </select>
-                      </label>
-                      <label className="check-label">
-                        <input
-                          type="checkbox"
-                          checked={listMode}
-                          onChange={(e) => setListMode(e.target.checked)}
-                        />{" "}
-                        3D 대신 목록으로 둘러보기
-                      </label>
-                      <p className="micro">
-                        기기의 모션 감소 설정을 따릅니다. 배경음은 꺼져 있어요.
-                      </p>
-                    </section>
-                    <section className="settings-card">
-                      <h2>섬 설정</h2>
-                      {world.island?.owner === world.me ? (
-                        <form
-                          onSubmit={async (e) => {
-                            e.preventDefault();
-                            const f = new FormData(e.currentTarget);
-                            if (
-                              await act({
-                                type: "island.rename",
-                                name: f.get("name"),
-                              })
-                            )
-                              tell("섬 이름을 바꿨어요.");
-                          }}
-                        >
-                          <label>
-                            섬 이름
-                            <input
-                              name="name"
-                              defaultValue={world.island.name}
-                              required
-                              maxLength={30}
-                            />
-                          </label>
-                          <button className="btn outline small">
-                            이름 저장
-                          </button>
-                        </form>
-                      ) : (
-                        <p>섬 관리 권한은 방장에게 있어요.</p>
-                      )}
-                      <button
-                        className="text-button danger"
-                        onClick={() => {
-                          if (
-                            confirm(
-                              "섬을 떠나면 내 공간이 제거되고 기록이 비공개로 바뀌어요. 계속할까요?",
-                            )
-                          )
-                            act({ type: "island.leave" });
-                        }}
-                      >
-                        섬 떠나기
-                      </button>
-                    </section>
-                    <section className="settings-card">
-                      <h2>내 데이터</h2>
-                      <p>내 취향과 공간 기록을 파일로 보관할 수 있어요.</p>
-                      <button
-                        className="btn outline"
-                        onClick={() => {
-                          const mine = {
-                            profile: me,
-                            items: world.items.filter(
-                              (i) => i.owner === world.me,
-                            ),
-                            spaces: world.spaces.filter(
-                              (s) => s.owner === world.me,
-                            ),
-                            comments: world.comments.filter(
-                              (c) => c.author === world.me,
-                            ),
-                          };
-                          const u = URL.createObjectURL(
-                            new Blob([JSON.stringify(mine, null, 2)], {
-                              type: "application/json",
-                            }),
-                          );
-                          const a = document.createElement("a");
-                          a.href = u;
-                          a.download = "isola-my-world.json";
-                          a.click();
-                          URL.revokeObjectURL(u);
-                        }}
-                      >
-                        <Download size={16} />내 기록 다운로드
-                      </button>
-                      <div className="button-row">
-                        <button className="text-button" onClick={signOut}>
-                          <LogOut size={15} />
-                          로그아웃
-                        </button>
-                        <button
-                          className="text-button danger"
-                          onClick={async () => {
-                            if (
-                              confirm(
-                                "계정 삭제를 요청할까요? 접근 권한이 회수되고 운영자의 삭제 처리를 기다립니다.",
-                              )
-                            ) {
-                              if (await act({ type: "account.delete" }))
-                                await signOut();
-                            }
-                          }}
-                        >
-                          계정 삭제 요청
-                        </button>
-                      </div>
-                    </section>
-                  </div>
-                </>
-              )}
-            </>
-          )}
-          <footer className="workspace-footer">
-            <span>
-              ISOLA <span>·</span> 작고 다정한 우리의 세계
-            </span>
-            <span>Take your time. You belong here.</span>
-          </footer>
-        </main>
-      </div>
+              <footer className="workspace-footer">
+                <span>
+                  CAPY COVE <span>·</span> 카피바라들의 노을 마을
+                </span>
+                <span>Take your time. You belong here.</span>
+              </footer>
+            </main>
+          </div>
+        </>
+      )}
       {modal === "profile" && (
         <ProfileForm
           world={world}
@@ -2004,7 +2094,7 @@ function Login({
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   return (
-    <Modal title="ISOLA에 오신 걸 환영해요" onClose={onClose}>
+    <Modal title="CAPY COVE에 오신 걸 환영해요" onClose={onClose}>
       <form
         className="form"
         onSubmit={async (e) => {
@@ -2242,9 +2332,16 @@ function ProfileForm({
           });
         }}
       >
-        <div className="avatar-preview">
-          <AvatarDot profile={{ name: me?.name ?? "나", avatar }} />
-          <p>내가 고른 모습이 곧 나예요.</p>
+        <div className="capy-look-preview">
+          <img
+            src={
+              avatar.style === "bun"
+                ? "/capy-world/capy-neighbor-v1.webp"
+                : "/capy-world/capy-hero-v1.webp"
+            }
+            alt="선택한 카피바라 모습"
+          />
+          <p>카피바라로 살아가는 오늘의 모습</p>
         </div>
         <label>
           닉네임
@@ -2269,61 +2366,31 @@ function ProfileForm({
             placeholder="호칭, 대명사, 원하는 표현을 자유롭게"
           />
         </label>
-        <div className="two-columns">
-          <label>
-            체형
-            <select
-              value={avatar.body}
-              onChange={(e) =>
-                setAvatar({ ...avatar, body: e.target.value as Avatar["body"] })
-              }
-            >
-              <option value="small">작은 체형</option>
-              <option value="round">둥근 체형</option>
-              <option value="tall">길쭉한 체형</option>
-            </select>
-          </label>
-          <label>
-            머리 모양
-            <select
-              value={avatar.style}
-              onChange={(e) =>
-                setAvatar({
-                  ...avatar,
-                  style: e.target.value as Avatar["style"],
-                })
-              }
-            >
-              <option value="short">짧은 머리</option>
-              <option value="bob">단발 머리</option>
-              <option value="bun">묶은 머리</option>
-            </select>
-          </label>
-        </div>
-        {(
-          [
-            ["skin", "피부색", ["#efc3a4", "#dba57b", "#a97553", "#704e3a"]],
-            ["hair", "머리색", ["#514139", "#8c6650", "#d4b77d", "#b7828b"]],
-            ["shirt", "옷 색상", ["#819e87", "#cc9684", "#a0aaca", "#d4ba7e"]],
-          ] as const
-        ).map(([key, label, colors]) => (
-          <fieldset className="swatch-field" key={key}>
-            <legend>{label}</legend>
-            {colors.map((color, i) => (
-              <button
-                type="button"
-                key={color}
-                aria-label={`${label} ${i + 1}`}
-                aria-pressed={avatar[key] === color}
-                className={avatar[key] === color ? "chosen" : ""}
-                style={{ background: color }}
-                onClick={() => setAvatar({ ...avatar, [key]: color })}
-              >
-                {avatar[key] === color && <Check size={15} />}
-              </button>
-            ))}
-          </fieldset>
-        ))}
+        <fieldset className="capy-look-picker">
+          <legend>오늘의 스타일</legend>
+          <button
+            type="button"
+            aria-pressed={avatar.style !== "bun"}
+            className={avatar.style !== "bun" ? "chosen" : ""}
+            onClick={() => setAvatar({ ...avatar, style: "short" })}
+          >
+            <img src="/capy-world/capy-hero-v1.webp" alt="" />
+            <span>조개 산책</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={avatar.style === "bun"}
+            className={avatar.style === "bun" ? "chosen" : ""}
+            onClick={() => setAvatar({ ...avatar, style: "bun" })}
+          >
+            <img src="/capy-world/capy-neighbor-v1.webp" alt="" />
+            <span>라일락 티타임</span>
+          </button>
+        </fieldset>
+        <p className="micro">
+          첫 번째 스타일 두 벌을 준비했어요. 더 많은 옷과 액세서리는 다음 버전에
+          추가됩니다.
+        </p>
         <button className="btn primary full">
           이 모습으로 머물기 <Check size={16} />
         </button>

@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./capy-plaza.css";
 export const metadata: Metadata = {
-  title: "ISOLA · 우리의 작은 낙원",
-  description: "좋아하는 것들로 채운 작은 섬. 친구들과 함께, 나답게 머무는 곳.",
-  appleWebApp: { capable: true, title: "ISOLA", statusBarStyle: "default" },
+  title: "CAPY COVE · 카피바라들의 노을 마을",
+  description: "카피바라가 되어 걷고, 친구의 작은 세계에 놀러 가요.",
+  appleWebApp: { capable: true, title: "CAPY COVE", statusBarStyle: "default" },
 };
 export const viewport: Viewport = {
   width: "device-width",

@@ -1,13 +1,13 @@
 import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "ISOLA · 우리의 작은 낙원",
-    short_name: "ISOLA",
-    description: "좋아하는 것들로 채우는 우리의 섬",
+    name: "CAPY COVE · 카피바라들의 노을 마을",
+    short_name: "CAPY COVE",
+    description: "카피바라가 되어 걷고, 친구의 작은 세계에 놀러 가요.",
     start_url: "/",
     display: "standalone",
-    background_color: "#f7f6ef",
-    theme_color: "#f7f6ef",
+    background_color: "#68c5d3",
+    theme_color: "#68c5d3",
     lang: "ko",
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },

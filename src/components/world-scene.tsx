@@ -1,6 +1,6 @@
 "use client";
 import { Canvas, ThreeEvent, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { Billboard, OrbitControls, useTexture } from "@react-three/drei";
 import {
   Component,
   ReactNode,
@@ -204,59 +204,22 @@ export function Doll({
   avatar?: Avatar;
   position?: Vec;
 }) {
+  const hero = useTexture("/capy-world/capy-hero-v1.webp");
+  const neighbor = useTexture("/capy-world/capy-neighbor-v1.webp");
   return (
-    <group
-      position={position}
-      scale={avatar.body === "small" ? 0.82 : avatar.body === "tall" ? 1.08 : 1}
-    >
-      <Mesh
-        position={[-0.12, 0.15, 0]}
-        scale={[0.16, 0.3, 0.19]}
-        color="#695b50"
-      />
-      <Mesh
-        position={[0.12, 0.15, 0]}
-        scale={[0.16, 0.3, 0.19]}
-        color="#695b50"
-      />
-      <Mesh
-        position={[0, 0.49, 0]}
-        scale={[0.36, 0.43, 0.28]}
-        color={avatar.shirt}
-        shape="sphere"
-      />
-      <Mesh
-        position={[0, 0.94, 0]}
-        scale={[0.3, 0.31, 0.28]}
-        color={avatar.skin}
-        shape="sphere"
-      />
-      <Mesh
-        position={[0, 1.09, -0.04]}
-        scale={[0.32, 0.2, avatar.style === "bob" ? 0.31 : 0.26]}
-        color={avatar.hair}
-        shape="sphere"
-      />
-      {avatar.style === "bun" && (
-        <Mesh
-          position={[0, 1.33, -0.06]}
-          scale={[0.14, 0.14, 0.14]}
-          color={avatar.hair}
-          shape="sphere"
-        />
-      )}
-      <Mesh
-        position={[-0.1, 0.95, 0.257]}
-        scale={[0.025, 0.035, 0.015]}
-        color="#493a35"
-        shape="sphere"
-      />
-      <Mesh
-        position={[0.1, 0.95, 0.257]}
-        scale={[0.025, 0.035, 0.015]}
-        color="#493a35"
-        shape="sphere"
-      />
+    <group position={position}>
+      <Billboard position={[0, 0.9, 0]}>
+        <mesh>
+          <planeGeometry args={[1.25, 1.5]} />
+          <meshBasicMaterial
+            map={avatar.style === "bun" ? neighbor : hero}
+            transparent
+            alphaTest={0.05}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+          />
+        </mesh>
+      </Billboard>
     </group>
   );
 }

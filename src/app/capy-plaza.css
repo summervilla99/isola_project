@@ -1,0 +1,684 @@
+.capy-landing {
+  height: 100dvh;
+  min-height: 0;
+}
+
+.capy-avatar-dot {
+  background: #ffe0b6;
+}
+
+.capy-avatar-dot img {
+  width: 130%;
+  height: 130%;
+  object-fit: contain;
+  object-position: center 8px;
+}
+
+.capy-look-preview {
+  display: grid;
+  justify-items: center;
+  padding: 12px;
+  border-radius: 18px;
+  background: linear-gradient(#ffddbd, #f8b8a5);
+}
+
+.capy-look-preview img {
+  width: 135px;
+  height: 115px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 5px #865a6480);
+}
+
+.capy-look-preview p {
+  margin-top: 3px;
+  color: #67425b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.capy-look-picker {
+  display: flex;
+  gap: 10px;
+  border: 0;
+  padding: 0;
+}
+
+.capy-look-picker legend {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.capy-look-picker button {
+  display: flex;
+  flex: 1;
+  min-height: 118px;
+  flex-direction: column;
+  align-items: center;
+  border: 2px solid #ead7c4;
+  border-radius: 14px;
+  background: #fff9e9;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.capy-look-picker button.chosen {
+  border-color: #f4769a;
+  box-shadow: 0 3px 0 #c3577a;
+}
+
+.capy-look-picker img {
+  width: 72px;
+  height: 83px;
+  object-fit: contain;
+}
+
+.capy-landing .modal,
+.app-shell .modal {
+  max-height: 92dvh;
+  border: 3px solid #fff8e7;
+  background: #fff9ea;
+  box-shadow: 0 8px 0 #a8657c, 0 26px 90px #4e365c8a;
+  color: #5d3c52;
+}
+
+.capy-landing .modal-heading,
+.app-shell .modal-heading {
+  border-bottom-color: #f2d9c6;
+  background: #fff9ea;
+}
+
+.capy-landing .modal .form,
+.app-shell .modal .form {
+  gap: 13px;
+}
+
+.capy-landing .modal .primary,
+.app-shell .modal .primary {
+  background: #ff6e91;
+  box-shadow: 0 4px 0 #b74c70;
+  color: white;
+}
+
+.capy-landing > :not(.capy-plaza):not(dialog):not(.toast) {
+  display: none;
+}
+
+.app-shell.capy-island {
+  display: block;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-shell.capy-island > .sidebar,
+.app-shell.capy-island > .main-area {
+  display: none;
+}
+
+.capy-plaza {
+  --capy-ink: #53313f;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--capy-ink);
+  background: #68c5d3;
+  font-family:
+    "Avenir Next", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+}
+
+.capy-map {
+  position: absolute;
+  width: max(100vw, 177.68dvh);
+  height: max(100dvh, 56.28vw);
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: url("/capy-world/plaza-v1.webp") center / 100% 100% no-repeat;
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+
+.capy-sky-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    #54335736,
+    transparent 22%,
+    transparent 65%,
+    #45304421 100%
+  );
+}
+
+.capy-plaza button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 4px;
+}
+
+.capy-hud-top {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: max(18px, env(safe-area-inset-top))
+    max(24px, env(safe-area-inset-right));
+  pointer-events: none;
+}
+
+.capy-hud-top > * {
+  pointer-events: auto;
+}
+
+.capy-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fffaf1;
+  font-size: clamp(17px, 2vw, 26px);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-shadow:
+    0 2px 8px #503445a6,
+    0 1px #503445;
+}
+
+.capy-brand small {
+  display: block;
+  margin-top: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.capy-brand-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 3px solid #fff8e4;
+  border-radius: 15px;
+  background: #ff789d;
+  box-shadow:
+    0 5px 0 #8e4964,
+    0 8px 22px #4f3a5a5c;
+  color: #fff4ad;
+  font-size: 31px;
+  transform: rotate(-8deg);
+}
+
+.capy-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.capy-island-chip,
+.capy-place-label,
+.capy-hud-bottom {
+  border: 2px solid #fff8eb;
+  background: #fff8e4eb;
+  box-shadow:
+    0 4px 0 #7c5474b3,
+    0 12px 32px #53344838;
+  color: #653f57;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.capy-island-chip {
+  padding: 12px 17px;
+  border-radius: 50px;
+}
+
+.capy-round-button {
+  display: grid;
+  place-items: center;
+  width: 51px;
+  height: 51px;
+  border: 2px solid #fff8e9;
+  border-radius: 17px;
+  background: #ff789c;
+  box-shadow:
+    0 5px 0 #b54b73,
+    0 10px 28px #52334e70;
+  color: #fff;
+}
+
+.capy-menu {
+  position: absolute;
+  z-index: 8;
+  top: 83px;
+  right: max(24px, env(safe-area-inset-right));
+  width: min(260px, calc(100vw - 36px));
+  padding: 11px;
+  border: 3px solid #fffdf2;
+  border-radius: 22px;
+  background: #fff6df;
+  box-shadow:
+    0 7px 0 #a36b7e,
+    0 20px 50px #52334e7a;
+}
+
+.capy-menu button {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 15px;
+  border-radius: 13px;
+  background: transparent;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.capy-menu button:hover {
+  background: #ffe1ba;
+}
+
+.capy-guest-card {
+  position: absolute;
+  z-index: 4;
+  left: clamp(22px, 6vw, 96px);
+  bottom: max(28px, env(safe-area-inset-bottom));
+  width: min(420px, calc(100vw - 44px));
+  padding: clamp(22px, 3vw, 32px);
+  border: 3px solid #fff8df;
+  border-radius: 28px 30px 25px 30px;
+  background: #fff3dbea;
+  box-shadow:
+    0 8px 0 #a5657c,
+    0 23px 62px #4c345a70;
+  backdrop-filter: blur(10px);
+  transform: rotate(-1deg);
+}
+
+.capy-guest-card > p {
+  color: #f16d8d;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+}
+
+.capy-guest-card h1 {
+  margin: 10px 0 10px;
+  font-size: clamp(30px, 3vw, 43px);
+  font-weight: 900;
+  line-height: 1.18;
+  letter-spacing: -0.065em;
+}
+
+.capy-guest-card > span {
+  display: block;
+  color: #765c62;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.capy-guest-card > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 20px;
+}
+
+.capy-primary-button {
+  display: inline-flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border: 2px solid #fff6e0;
+  border-radius: 16px;
+  background: #ff6e91;
+  box-shadow: 0 5px 0 #b74c70;
+  color: white;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.capy-text-button {
+  background: transparent;
+  color: #704e67;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.capy-neighbor,
+.capy-player {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -88%);
+  pointer-events: none;
+}
+
+.capy-neighbor img,
+.capy-player img {
+  display: block;
+  width: clamp(70px, 9vw, 142px);
+  height: auto;
+  filter: drop-shadow(0 10px 6px #67484c69);
+}
+
+.capy-neighbor span,
+.capy-name {
+  margin-top: -5px;
+  padding: 4px 9px;
+  border: 2px solid #fff5d8;
+  border-radius: 20px;
+  background: #fff6e4ec;
+  box-shadow: 0 3px 0 #935b75;
+  color: #68475b;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.capy-neighbor-one {
+  left: 65%;
+  top: 68%;
+  animation: capy-idle 2.7s ease-in-out infinite;
+}
+
+.capy-neighbor-two {
+  left: 38%;
+  top: 69%;
+  transform: translate(-50%, -88%) scale(0.84);
+  animation: capy-idle 3.3s ease-in-out infinite 0.4s;
+}
+
+.capy-plaza:not(.is-guest) .capy-neighbor-two {
+  display: none;
+}
+
+.capy-player {
+  z-index: 3;
+}
+
+.capy-remote {
+  transition:
+    left 130ms linear,
+    top 130ms linear;
+}
+
+.capy-player.is-walking img {
+  animation: capy-walk 0.3s ease-in-out infinite alternate;
+}
+
+.capy-bubble {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 110px;
+  padding: 9px 13px;
+  border: 2px solid #fffdf2;
+  border-radius: 16px;
+  background: #fff0d9;
+  box-shadow: 0 4px 0 #a36b7e;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.capy-place-label {
+  position: absolute;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 17px;
+  border-radius: 50px;
+  white-space: nowrap;
+}
+
+.capy-place-label > span {
+  color: #fa7c97;
+}
+
+.capy-place-label small {
+  margin-left: 7px;
+  color: #987986;
+  font-size: 10px;
+}
+
+.capy-place-label .capy-live-count {
+  display: none;
+}
+
+.capy-action-bar {
+  position: absolute;
+  z-index: 5;
+  right: max(26px, env(safe-area-inset-right));
+  bottom: max(27px, env(safe-area-inset-bottom));
+  display: flex;
+  gap: 10px;
+}
+
+.capy-action-bar button {
+  display: flex;
+  width: 69px;
+  height: 69px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #fff9e9;
+  border-radius: 22px;
+  background: #fff1daed;
+  box-shadow:
+    0 6px 0 #a6637d,
+    0 12px 25px #51344d70;
+}
+
+.capy-action-bar button span {
+  font-size: 25px;
+  line-height: 1.2;
+}
+
+.capy-action-bar button small {
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.capy-mobile-pad {
+  display: none;
+}
+
+.capy-hud-bottom {
+  position: absolute;
+  z-index: 4;
+  left: 27px;
+  bottom: 29px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 11px;
+}
+
+.capy-hud-bottom span {
+  color: #f16d8d;
+}
+
+@keyframes capy-idle {
+  50% {
+    translate: 0 -4px;
+  }
+}
+
+@keyframes capy-walk {
+  to {
+    transform: rotate(3deg) translateY(-4px);
+  }
+}
+
+@media (max-width: 700px) {
+  .capy-hud-top {
+    padding: max(13px, env(safe-area-inset-top)) 16px;
+  }
+  .capy-brand {
+    font-size: 16px;
+    gap: 7px;
+  }
+  .capy-brand-icon {
+    width: 37px;
+    height: 37px;
+    font-size: 27px;
+    border-radius: 13px;
+  }
+  .capy-brand small {
+    font-size: 8px;
+  }
+  .capy-island-chip {
+    display: none;
+  }
+  .capy-round-button {
+    width: 47px;
+    height: 47px;
+  }
+  .capy-menu {
+    top: 72px;
+    right: 16px;
+  }
+  .capy-guest-card {
+    left: 16px;
+    bottom: max(19px, env(safe-area-inset-bottom));
+    width: calc(100vw - 32px);
+    padding: 21px;
+  }
+  .capy-guest-card h1 {
+    font-size: 31px;
+  }
+  .capy-neighbor img,
+  .capy-player img {
+    width: clamp(74px, 25vw, 120px);
+  }
+  .capy-place-label {
+    top: 74px;
+    font-size: 11px;
+  }
+  .capy-place-label small {
+    display: none;
+  }
+  .capy-place-label .capy-live-count {
+    display: inline;
+  }
+  .capy-hud-bottom {
+    display: none;
+  }
+  .capy-action-bar {
+    right: 15px;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    gap: 7px;
+  }
+  .capy-action-bar button {
+    width: 61px;
+    height: 61px;
+    border-radius: 18px;
+  }
+  .capy-mobile-pad {
+    position: absolute;
+    z-index: 5;
+    left: 13px;
+    bottom: max(18px, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .capy-mobile-pad > div {
+    display: flex;
+    gap: 3px;
+  }
+  .capy-mobile-pad button {
+    width: 45px;
+    height: 45px;
+    border: 2px solid #fff8e9;
+    border-radius: 14px;
+    background: #fff1dcea;
+    box-shadow: 0 4px 0 #a6637d;
+    font-size: 22px;
+    font-weight: 900;
+  }
+}
+
+@media (max-width: 700px) and (orientation: portrait) {
+  .capy-neighbor-one {
+    left: 53%;
+    top: 65%;
+  }
+  .capy-neighbor-two {
+    display: none;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .capy-guest-card {
+    left: 18px;
+    bottom: 17px;
+    width: min(345px, calc(100vw - 42px));
+    padding: 16px 18px;
+    border-radius: 21px;
+  }
+  .capy-guest-card h1 {
+    margin: 5px 0;
+    font-size: 24px;
+  }
+  .capy-guest-card > span {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .capy-guest-card > div {
+    margin-top: 8px;
+  }
+  .capy-primary-button {
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+  .capy-text-button {
+    font-size: 11px;
+  }
+  .capy-place-label {
+    top: 75px;
+  }
+  .capy-action-bar {
+    bottom: 15px;
+  }
+}
+
+@media (max-width: 450px) {
+  .capy-action-bar button {
+    width: 53px;
+    height: 53px;
+  }
+  .capy-action-bar button span {
+    font-size: 21px;
+  }
+  .capy-mobile-pad button {
+    width: 39px;
+    height: 39px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capy-neighbor,
+  .capy-player.is-walking img {
+    animation: none;
+  }
+}
