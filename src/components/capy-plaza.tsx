@@ -15,9 +15,11 @@ import {
 import { supabase } from "@/lib/store";
 import { playCapySound, type CapySound } from "@/lib/capy-sounds";
 import { doorScenarios, type DoorScenarioId } from "@/lib/door-scenarios";
+import LibraryNotes from "@/components/library-notes";
 
 type Position = { x: number; y: number };
-type Zone = "village" | "club" | "spring";
+type Zone = "village" | "club" | "spring" | "library-yard" | "library";
+type LibraryAction = "reading" | "napping" | "snacking" | "stacking";
 type ClubGenre = "house" | "edm";
 type SocialAction =
   "lie" | "nose" | "orange" | "chin" | "follow" | "gaze" | "chorus";
@@ -32,6 +34,7 @@ type Neighbor = Position & {
   orange?: boolean;
   idleState?: number;
   jumping?: boolean;
+  libraryAction?: LibraryAction;
 };
 type PlazaProps = {
   islandId?: string;
@@ -57,6 +60,8 @@ type PlazaProps = {
 const START = { x: 51, y: 76 };
 const CLUB_START = { x: 50, y: 78 };
 const SPRING_START = { x: 50, y: 83 };
+const LIBRARY_YARD_START = { x: 46, y: 78 };
+const LIBRARY_START = { x: 52, y: 79 };
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 const animalSprite = "/capy-world/animal/player-v1.webp";
@@ -70,13 +75,38 @@ const MUSIC = {
 function walkablePoint(point: Position, zone: Zone): Position {
   const club = zone === "club";
   const spring = zone === "spring";
-  const y = clamp(point.y, club ? 48 : spring ? 49 : 38, club ? 92 : 94);
+  const library = zone === "library";
+  const y = clamp(
+    point.y,
+    club ? 48 : spring ? 49 : library ? 56 : 38,
+    club ? 92 : 94,
+  );
   const narrowEntrance = club ? y < 58 : y < 53;
   return {
     x: clamp(
       point.x,
-      spring ? 17 : narrowEntrance ? (club ? 33 : 43) : club ? 14 : 8,
-      spring ? 83 : narrowEntrance ? (club ? 67 : 57) : club ? 86 : 92,
+      spring
+        ? 17
+        : library
+          ? 24
+          : narrowEntrance
+            ? club
+              ? 33
+              : 43
+            : club
+              ? 14
+              : 8,
+      spring
+        ? 83
+        : library
+          ? 78
+          : narrowEntrance
+            ? club
+              ? 67
+              : 57
+            : club
+              ? 86
+              : 92,
     ),
     y,
   };
@@ -142,6 +172,15 @@ export default function CapyPlaza({
   const [puffing, setPuffing] = useState(false);
   const [springClues, setSpringClues] = useState(0);
   const [springDiscovered, setSpringDiscovered] = useState(false);
+  const [libraryNotesOpen, setLibraryNotesOpen] = useState(false);
+  const [notesRefresh, setNotesRefresh] = useState(0);
+  const [libraryAction, setLibraryAction] = useState<LibraryAction | null>(
+    null,
+  );
+  const [bookStack, setBookStack] = useState(0);
+  const bookStackRef = useRef(bookStack);
+  bookStackRef.current = bookStack;
+  const libraryActionTimer = useRef<number | null>(null);
   const [orangeTarget, setOrangeTarget] = useState<string | null>(null);
   const [socialTarget, setSocialTarget] = useState<{
     id: string;
@@ -265,7 +304,12 @@ export default function CapyPlaza({
     (nextZone: Zone, nextGenre: ClubGenre = clubGenre) => {
       const audio = musicRef.current;
       if (!audio) return;
-      const track = nextZone === "club" ? MUSIC[nextGenre] : MUSIC[nextZone];
+      const track =
+        nextZone === "club"
+          ? MUSIC[nextGenre]
+          : nextZone === "spring"
+            ? MUSIC.spring
+            : MUSIC.village;
       if (audio.getAttribute("src") !== track.src) {
         audio.pause();
         audio.src = track.src;
@@ -313,6 +357,8 @@ export default function CapyPlaza({
   useEffect(
     () => () => {
       if (jumpTimer.current) window.clearTimeout(jumpTimer.current);
+      if (libraryActionTimer.current)
+        window.clearTimeout(libraryActionTimer.current);
       musicRef.current?.pause();
     },
     [],
@@ -419,9 +465,19 @@ export default function CapyPlaza({
       switchMusic(next);
       setZone(next);
       const start =
-        next === "club" ? CLUB_START : next === "spring" ? SPRING_START : START;
+        next === "club"
+          ? CLUB_START
+          : next === "spring"
+            ? SPRING_START
+            : next === "library-yard"
+              ? LIBRARY_YARD_START
+              : next === "library"
+                ? LIBRARY_START
+                : START;
       player.current = start;
       destination.current = start;
+      heldKeys.current.clear();
+      padDirection.current = null;
       setPosition(start);
       setNeighbors([]);
       setBubble("");
@@ -437,6 +493,9 @@ export default function CapyPlaza({
       setNpcBubble("");
       setNpcBubbleFor(null);
       setOrangeTarget(next === "spring" ? "self" : null);
+      setLibraryNotesOpen(false);
+      setLibraryAction(null);
+      setBookStack(0);
       markActive();
       facingRef.current = 0;
       setFacing(0);
@@ -478,6 +537,11 @@ export default function CapyPlaza({
       requestClubEntry();
     }
   }, [position, zone, guest, guardOpen, requestClubEntry]);
+
+  useEffect(() => {
+    if (!guest && zone === "village" && position.x <= 39 && position.y >= 53)
+      changeZone("library-yard");
+  }, [guest, zone, position, changeZone]);
 
   const finishCharm = () => {
     setCharmPhase(4);
@@ -678,6 +742,8 @@ export default function CapyPlaza({
     };
     frame = requestAnimationFrame(tick);
     const down = (event: KeyboardEvent) => {
+      if ((event.target as HTMLElement)?.closest?.(".capy-library-overlay"))
+        return;
       if (
         /^(INPUT|TEXTAREA|SELECT)$/.test((event.target as HTMLElement)?.tagName)
       )
@@ -725,6 +791,13 @@ export default function CapyPlaza({
     );
     return () => window.clearTimeout(timeout);
   }, [bubble, barStep]);
+
+  useEffect(() => {
+    if (zone !== "library" || bookStack < 5) return;
+    setBubble("와르르! 모두 모른 척… 🫣");
+    const timer = window.setTimeout(() => setBookStack(0), 1700);
+    return () => window.clearTimeout(timer);
+  }, [zone, bookStack]);
 
   useEffect(() => {
     if (!guest) switchMusic(zone, clubGenre);
@@ -870,7 +943,12 @@ export default function CapyPlaza({
         setNeighbors((current) =>
           current.map((item) =>
             item.id === peer.id
-              ? { ...item, bubble: peer.bubble, dancing: !!peer.dancing }
+              ? {
+                  ...item,
+                  bubble: peer.bubble,
+                  dancing: !!peer.dancing,
+                  libraryAction: peer.libraryAction,
+                }
               : item,
           ),
         );
@@ -878,11 +956,55 @@ export default function CapyPlaza({
           () =>
             setNeighbors((current) =>
               current.map((item) =>
-                item.id === peer.id ? { ...item, bubble: undefined } : item,
+                item.id === peer.id
+                  ? { ...item, bubble: undefined, libraryAction: undefined }
+                  : item,
               ),
             ),
           2400,
         );
+      })
+      .on("broadcast", { event: "library-note" }, () => {
+        setNotesRefresh((value) => value + 1);
+      })
+      .on("broadcast", { event: "library-stack" }, ({ payload }) => {
+        const event = payload as { zone?: Zone };
+        if (zoneRef.current !== "library" || event.zone !== "library") return;
+        setBookStack((current) => Math.min(5, current + 1));
+      })
+      .on("broadcast", { event: "library-stack-request" }, ({ payload }) => {
+        const event = payload as { id?: string; zone?: Zone };
+        if (
+          zoneRef.current !== "library" ||
+          event.zone !== "library" ||
+          !event.id ||
+          event.id === presenceId
+        )
+          return;
+        void room.send({
+          type: "broadcast",
+          event: "library-stack-state",
+          payload: {
+            target: event.id,
+            zone: "library",
+            count: bookStackRef.current,
+          },
+        });
+      })
+      .on("broadcast", { event: "library-stack-state" }, ({ payload }) => {
+        const event = payload as {
+          target?: string;
+          zone?: Zone;
+          count?: number;
+        };
+        if (
+          zoneRef.current !== "library" ||
+          event.target !== presenceId ||
+          event.zone !== "library" ||
+          typeof event.count !== "number"
+        )
+          return;
+        setBookStack((current) => Math.max(current, clamp(event.count!, 0, 5)));
       })
       .on("broadcast", { event: "social" }, ({ payload }) => {
         const event = payload as {
@@ -985,6 +1107,15 @@ export default function CapyPlaza({
   }, [zone, connected]);
 
   useEffect(() => {
+    if (zone !== "library" || !connected) return;
+    void channel.current?.send({
+      type: "broadcast",
+      event: "library-stack-request",
+      payload: { id: presenceIdRef.current, zone: "library" },
+    });
+  }, [zone, connected]);
+
+  useEffect(() => {
     if (
       !connected ||
       !channel.current ||
@@ -1014,9 +1145,64 @@ export default function CapyPlaza({
         payload: {
           id: presenceIdRef.current,
           zone,
+          ...player.current,
           bubble: message,
           dancing: dance ? !dancing : dancing,
         },
+      });
+  };
+
+  const doLibraryAction = (action: LibraryAction) => {
+    if (libraryActionTimer.current)
+      window.clearTimeout(libraryActionTimer.current);
+    setLibraryAction(action);
+    const message =
+      action === "reading"
+        ? "한 장만 더 읽을게… 📖"
+        : action === "napping"
+          ? "꾸벅… 쿵! 😴"
+          : action === "snacking"
+            ? "사서 몰래 귤 한 입 🍊"
+            : "책을 살포시 얹었다 📚";
+    setBubble(message);
+    if (action === "snacking") {
+      setNpcBubble("쉿! …음? 귤 냄새?");
+      setNpcBubbleFor("librarian");
+      window.setTimeout(() => {
+        setNpcBubble("…드르렁");
+      }, 1500);
+      window.setTimeout(() => {
+        setNpcBubble("");
+        setNpcBubbleFor(null);
+      }, 3300);
+    }
+    if (connected)
+      void channel.current?.send({
+        type: "broadcast",
+        event: "gesture",
+        payload: {
+          id: presenceIdRef.current,
+          zone,
+          ...player.current,
+          bubble: message,
+          libraryAction: action,
+        },
+      });
+    libraryActionTimer.current = window.setTimeout(
+      () => setLibraryAction(null),
+      2600,
+    );
+  };
+
+  const stackBook = () => {
+    if (bookStack >= 5) return;
+    doLibraryAction("stacking");
+    setBookStack((current) => Math.min(5, current + 1));
+    if (connected)
+      void channel.current?.send({
+        type: "broadcast",
+        event: "library-stack",
+        payload: { zone: "library" },
       });
   };
 
@@ -1047,7 +1233,15 @@ export default function CapyPlaza({
   };
 
   const cameraFocus =
-    zone === "club" ? CLUB_START : zone === "spring" ? SPRING_START : START;
+    zone === "club"
+      ? CLUB_START
+      : zone === "spring"
+        ? SPRING_START
+        : zone === "library-yard"
+          ? LIBRARY_YARD_START
+          : zone === "library"
+            ? LIBRARY_START
+            : START;
   const cameraX = reducedMotion
     ? 0
     : clamp((cameraFocus.x - position.x) * 0.48, -15, 15);
@@ -1063,7 +1257,11 @@ export default function CapyPlaza({
           ? "카피바라 클럽"
           : zone === "spring"
             ? "비밀 귤 온천"
-            : "카피바라 마을 광장"
+            : zone === "library-yard"
+              ? "꾸벅 도서관 앞마당"
+              : zone === "library"
+                ? "꾸벅 도서관"
+                : "카피바라 마을 광장"
       }
     >
       <audio ref={musicRef} loop preload="none" aria-hidden="true" />
@@ -1149,6 +1347,16 @@ export default function CapyPlaza({
                     : ""}
               </span>
             </button>
+            <button
+              className="capy-library-path"
+              aria-label="왼쪽 꽃길로 꾸벅 도서관 가기"
+              onClick={(event) => {
+                event.stopPropagation();
+                changeZone("library-yard");
+              }}
+            >
+              <span>← 꾸벅 도서관</span>
+            </button>
           </>
         ) : zone === "club" ? (
           <>
@@ -1208,6 +1416,70 @@ export default function CapyPlaza({
               <span>모카</span>
             </button>
           </>
+        ) : zone === "library-yard" ? (
+          <>
+            <button
+              className="capy-library-door"
+              aria-label="꾸벅 도서관에 들어가기"
+              onClick={(event) => {
+                event.stopPropagation();
+                changeZone("library");
+              }}
+            >
+              <span>📖 들어가기</span>
+            </button>
+            <button
+              className="capy-library-trail"
+              aria-label="꽃길을 따라 노을 마을로 돌아가기"
+              onClick={(event) => {
+                event.stopPropagation();
+                changeZone("village");
+              }}
+            >
+              <span>← 마을 꽃길</span>
+            </button>
+          </>
+        ) : zone === "library" ? (
+          <>
+            <button
+              className="capy-library-shelf"
+              aria-label="벽 책장에서 노트 읽고 남기기"
+              onClick={(event) => {
+                event.stopPropagation();
+                setLibraryNotesOpen(true);
+              }}
+            >
+              <span>📚 책장 · 노트 남기기</span>
+            </button>
+            <button
+              className="capy-library-librarian"
+              aria-label="꾸벅꾸벅 조는 사서에게 말 걸기"
+              onClick={(event) => {
+                event.stopPropagation();
+                setNpcBubble("쉿… 드르렁…");
+                setNpcBubbleFor("librarian");
+              }}
+            >
+              {npcBubbleFor === "librarian" && npcBubble && (
+                <i className="capy-npc-bubble">{npcBubble}</i>
+              )}
+              <img src={animalSprite} alt="" />
+              <span>사서 꾸벅</span>
+            </button>
+            <button
+              className={`capy-library-stack ${bookStack >= 5 ? "is-falling" : ""}`}
+              aria-label="책 탑에 책 한 권 얹기"
+              onClick={(event) => {
+                event.stopPropagation();
+                stackBook();
+              }}
+            >
+              <span className="capy-stack-books">
+                {"📚".repeat(Math.max(1, bookStack))}
+              </span>
+              <span>책 탑 {bookStack}/5</span>
+            </button>
+          </>
         ) : (
           <>
             <div className="capy-spring-steam" aria-hidden="true">
@@ -1257,7 +1529,7 @@ export default function CapyPlaza({
         )}
         {!guest && (
           <div
-            className={`capy-player is-local ${walking ? "is-walking" : ""} ${jumping ? "is-jumping" : ""} ${dancing ? "is-dancing" : ""} ${guardStep === "charming" ? "is-charming" : ""} ${barStep === "wriggling" ? "is-bar-wriggling" : ""} ${puffing ? "is-puffing" : ""} ${idlePhase ? `is-idle-${idlePhase}` : ""} ${socialPose ? `is-social-${socialPose}` : ""} ${zone === "spring" ? "is-soaking" : ""}`}
+            className={`capy-player is-local ${walking ? "is-walking" : ""} ${jumping ? "is-jumping" : ""} ${dancing ? "is-dancing" : ""} ${guardStep === "charming" ? "is-charming" : ""} ${barStep === "wriggling" ? "is-bar-wriggling" : ""} ${puffing ? "is-puffing" : ""} ${idlePhase ? `is-idle-${idlePhase}` : ""} ${socialPose ? `is-social-${socialPose}` : ""} ${libraryAction ? `is-library-${libraryAction}` : ""} ${zone === "spring" ? "is-soaking" : ""}`}
             style={{
               left: `${position.x}%`,
               top: `${position.y}%`,
@@ -1327,7 +1599,7 @@ export default function CapyPlaza({
         {neighbors.map((neighbor) => (
           <div
             key={neighbor.id}
-            className={`capy-player capy-remote ${neighbor.walking ? "is-walking" : ""} ${neighbor.jumping ? "is-jumping" : ""} ${neighbor.dancing ? "is-dancing" : ""} ${neighbor.idleState ? `is-idle-${neighbor.idleState}` : ""}`}
+            className={`capy-player capy-remote ${neighbor.walking ? "is-walking" : ""} ${neighbor.jumping ? "is-jumping" : ""} ${neighbor.dancing ? "is-dancing" : ""} ${neighbor.libraryAction ? `is-library-${neighbor.libraryAction}` : ""} ${neighbor.idleState ? `is-idle-${neighbor.idleState}` : ""}`}
             style={{
               left: `${neighbor.x}%`,
               top: `${neighbor.y}%`,
@@ -1363,6 +1635,23 @@ export default function CapyPlaza({
           </div>
         ))}
       </div>
+
+      {zone === "library" && libraryNotesOpen && (
+        <LibraryNotes
+          nickname={presenceName}
+          visitorId={presenceIdRef.current}
+          refreshToken={notesRefresh}
+          onPosted={() => {
+            if (connected)
+              void channel.current?.send({
+                type: "broadcast",
+                event: "library-note",
+                payload: { zone: "library" },
+              });
+          }}
+          onClose={() => setLibraryNotesOpen(false)}
+        />
+      )}
 
       {zone === "village" && guardOpen && guardStep !== "charming" && (
         <div className="capy-guard-dialogue" role="dialog" aria-modal="true">
@@ -1543,7 +1832,11 @@ export default function CapyPlaza({
                 ? "카피바라 클럽"
                 : zone === "spring"
                   ? "비밀 귤 온천"
-                  : islandName}{" "}
+                  : zone === "library-yard"
+                    ? "도서관 앞마당"
+                    : zone === "library"
+                      ? "꾸벅 도서관"
+                      : islandName}{" "}
               ·{" "}
               {connected
                 ? `${neighbors.length + 1}명 온라인`
@@ -1606,6 +1899,16 @@ export default function CapyPlaza({
                   <span>♨</span> 비밀 귤 온천
                 </button>
               )}
+              {zone !== "library-yard" && zone !== "library" && (
+                <button
+                  onClick={() => {
+                    changeZone("library-yard");
+                    setMenuOpen(false);
+                  }}
+                >
+                  <BookOpen size={18} /> 꾸벅 도서관
+                </button>
+              )}
               <button
                 onClick={() => {
                   setNicknameDraft(nickname);
@@ -1664,7 +1967,11 @@ export default function CapyPlaza({
               ? "카피바라 클럽"
               : zone === "spring"
                 ? "비밀 귤 온천"
-                : "노을 마을"}{" "}
+                : zone === "library-yard"
+                  ? "도서관 꽃길"
+                  : zone === "library"
+                    ? "꾸벅 도서관"
+                    : "노을 마을"}{" "}
             <small>바닥을 누르면 걸어가요</small>
             <small className="capy-live-count">
               {connected
@@ -1677,9 +1984,12 @@ export default function CapyPlaza({
           {zone !== "village" && (
             <button
               className="capy-exit-club"
-              onClick={() => changeZone("village")}
+              onClick={() =>
+                changeZone(zone === "library" ? "library-yard" : "village")
+              }
             >
-              <ArrowLeft size={17} /> 마을로 나가기
+              <ArrowLeft size={17} />{" "}
+              {zone === "library" ? "도서관 밖으로" : "마을로 나가기"}
             </button>
           )}
           <div className="capy-action-bar">
@@ -1728,6 +2038,34 @@ export default function CapyPlaza({
                   <small>
                     {clubGenre === "house" ? "EDM 전환" : "하우스 전환"}
                   </small>
+                </button>
+              </>
+            ) : zone === "library" ? (
+              <>
+                <button
+                  onClick={() => doLibraryAction("reading")}
+                  aria-label="책 읽기"
+                >
+                  <span>📖</span>
+                  <small>책 읽기</small>
+                </button>
+                <button
+                  onClick={() => doLibraryAction("napping")}
+                  aria-label="꾸벅 졸기"
+                >
+                  <span>😴</span>
+                  <small>꾸벅 졸기</small>
+                </button>
+                <button
+                  onClick={() => doLibraryAction("snacking")}
+                  aria-label="몰래 귤 먹기"
+                >
+                  <span>🍊</span>
+                  <small>몰래 귤</small>
+                </button>
+                <button onClick={stackBook} aria-label="책 탑 쌓기">
+                  <span>📚</span>
+                  <small>책 탑</small>
                 </button>
               </>
             ) : zone === "spring" ? (
@@ -1846,9 +2184,13 @@ export default function CapyPlaza({
               ? "HOUSE BEAT · 120 BPM"
               : zone === "spring"
                 ? "귤이 둥둥 · 오래 있으면 모두 잠들어요"
-                : springDiscovered
-                  ? "바닥 클릭으로 걷기 · 오른쪽 꽃길 너머에 온천이 있어요"
-                  : "바닥 클릭으로 걷기 · 김이 나는 바위를 찾아보세요"}
+                : zone === "library"
+                  ? "쉿… 사서 꾸벅이 졸고 있어요 · 책장을 눌러 노트 남기기"
+                  : zone === "library-yard"
+                    ? "바닷바람이 책장을 넘겨요 · 문을 눌러 들어가기"
+                    : springDiscovered
+                      ? "왼쪽 꽃길엔 도서관 · 오른쪽 꽃길엔 온천"
+                      : "왼쪽 꽃길엔 도서관 · 김이 나는 바위를 찾아보세요"}
           </div>
         </>
       )}
