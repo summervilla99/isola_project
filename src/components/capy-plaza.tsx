@@ -16,6 +16,7 @@ import { supabase } from "@/lib/store";
 import { playCapySound, type CapySound } from "@/lib/capy-sounds";
 import { doorScenarios, type DoorScenarioId } from "@/lib/door-scenarios";
 import LibraryNotes from "@/components/library-notes";
+import SunsetPostcard from "@/components/sunset-postcard";
 
 type Position = { x: number; y: number };
 type Zone =
@@ -164,6 +165,7 @@ export default function CapyPlaza({
   );
   const [bookStack, setBookStack] = useState(0);
   const [sunsetWatching, setSunsetWatching] = useState(false);
+  const [sunsetCardNames, setSunsetCardNames] = useState<string[] | null>(null);
   const bookStackRef = useRef(bookStack);
   bookStackRef.current = bookStack;
   const libraryActionTimer = useRef<number | null>(null);
@@ -524,6 +526,7 @@ export default function CapyPlaza({
       setLibraryAction(null);
       setBookStack(0);
       setSunsetWatching(false);
+      setSunsetCardNames(null);
       markActive();
       facingRef.current = 0;
       setFacing(0);
@@ -775,7 +778,11 @@ export default function CapyPlaza({
     };
     frame = requestAnimationFrame(tick);
     const down = (event: KeyboardEvent) => {
-      if ((event.target as HTMLElement)?.closest?.(".capy-library-overlay"))
+      if (
+        (event.target as HTMLElement)?.closest?.(
+          ".capy-library-overlay, .capy-postcard-backdrop",
+        )
+      )
         return;
       if (
         /^(INPUT|TEXTAREA|SELECT)$/.test((event.target as HTMLElement)?.tagName)
@@ -2177,6 +2184,22 @@ export default function CapyPlaza({
                   : "연결 중"}
             </small>
           </div>
+          {zone === "beach" && sunsetWatching && (
+            <button
+              className="capy-sunset-postcard-trigger"
+              type="button"
+              onClick={() =>
+                setSunsetCardNames([
+                  nickname || "나",
+                  ...neighbors
+                    .filter((neighbor) => neighbor.sunsetWatching)
+                    .map((neighbor) => neighbor.name),
+                ])
+              }
+            >
+              ✉️ 방금 본 노을, 엽서로 남기기
+            </button>
+          )}
           {zone !== "village" && (
             <button
               className="capy-exit-club"
@@ -2419,6 +2442,12 @@ export default function CapyPlaza({
                         ? "왼쪽 꽃길엔 도서관 · 오른쪽 꽃길엔 온천"
                         : "왼쪽 꽃길엔 도서관 · 김이 나는 바위를 찾아보세요"}
           </div>
+          {sunsetCardNames && (
+            <SunsetPostcard
+              names={sunsetCardNames}
+              onClose={() => setSunsetCardNames(null)}
+            />
+          )}
         </>
       )}
     </section>
