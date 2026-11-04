@@ -68,6 +68,8 @@ const BEACH_START = { x: 58, y: 86 };
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 const animalSprite = "/capy-world/animal/player-v1.webp";
+const frontSprite = "/capy-world/animal/player-front-v1.webp";
+const backSprite = "/capy-world/animal/player-back-v1.webp";
 const swimmingSprite = "/capy-world/animal/swimming-v1.webp";
 const MUSIC = {
   village: { src: "/audio/village.mp3", volume: 0.34 },
@@ -92,7 +94,10 @@ function walkablePoint(point: Position, zone: Zone): Position {
 }
 
 function walkingSprite(facing = 0) {
-  return { src: animalSprite, flip: Math.sin(facing) < -0.12 };
+  const forward = Math.cos(facing);
+  if (forward > 0.55) return { src: frontSprite, flip: false };
+  if (forward < -0.55) return { src: backSprite, flip: false };
+  return { src: animalSprite, flip: Math.sin(facing) < 0 };
 }
 
 export default function CapyPlaza({
@@ -269,6 +274,17 @@ export default function CapyPlaza({
   useEffect(() => {
     const image = new Image();
     image.src = animalSprite;
+  }, []);
+
+  useEffect(() => {
+    const warmSprites = () => {
+      for (const src of [frontSprite, backSprite]) {
+        const image = new Image();
+        image.src = src;
+      }
+    };
+    const timer = window.setTimeout(warmSprites, 900);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -1376,6 +1392,9 @@ export default function CapyPlaza({
       >
         <div className="capy-sky-glow" />
         <div className="capy-atmosphere" aria-hidden="true" />
+        {zone === "village" && (
+          <div className="capy-village-foreground" aria-hidden="true" />
+        )}
         {zone === "village" ? (
           <>
             <button
@@ -1676,6 +1695,7 @@ export default function CapyPlaza({
             onPointerCancel={endSelfPress}
             onClick={clickSelf}
           >
+            <i className="capy-contact-shadow" aria-hidden="true" />
             {bubble && <span className="capy-bubble">{bubble}</span>}
             {idlePhase >= 3 && idlePhase < 4 && (
               <i className="capy-butterfly" aria-label="카피바라에게 앉은 나비">
@@ -1750,6 +1770,7 @@ export default function CapyPlaza({
               })
             }
           >
+            <i className="capy-contact-shadow" aria-hidden="true" />
             {neighbor.bubble && (
               <span className="capy-bubble">{neighbor.bubble}</span>
             )}

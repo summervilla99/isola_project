@@ -500,6 +500,7 @@
 
 .capy-plaza.is-beach .capy-player.is-swimming img {
   width: clamp(110px, 13vw, 150px);
+  height: auto;
   animation: capy-swim 1.35s ease-in-out infinite;
   filter: drop-shadow(0 6px 5px #12557a70);
 }
@@ -979,8 +980,8 @@
 .capy-spring-secret {
   position: absolute;
   z-index: 96;
-  left: 55%;
-  top: 72%;
+  left: 53%;
+  top: 62%;
   display: grid;
   place-items: center;
   width: clamp(72px, 7vw, 105px);
@@ -1267,6 +1268,24 @@
 
 .capy-plaza.is-village .capy-atmosphere::before {
   content: none;
+}
+
+.capy-village-foreground {
+  position: absolute;
+  z-index: 96;
+  inset: 0;
+  pointer-events: none;
+  background: image-set(
+      url("/capy-world/village-v3.avif") type("image/avif"),
+      url("/capy-world/village-v3.webp") type("image/webp")
+    )
+    center / 100% 100% no-repeat;
+  -webkit-mask-image:
+    radial-gradient(ellipse 18% 31% at 3% 95%, #000 42%, transparent 83%),
+    radial-gradient(ellipse 22% 34% at 98% 96%, #000 37%, transparent 82%);
+  mask-image:
+    radial-gradient(ellipse 18% 31% at 3% 95%, #000 42%, transparent 83%),
+    radial-gradient(ellipse 22% 34% at 98% 96%, #000 37%, transparent 82%);
 }
 
 .capy-plaza.is-club .capy-atmosphere {
@@ -1574,6 +1593,37 @@ button.capy-neighbor {
 
 .capy-player img {
   width: clamp(102px, 10.6vw, 168px);
+  height: clamp(66px, 6.2vw, 92px);
+  object-fit: contain;
+  object-position: center bottom;
+  position: relative;
+  z-index: 1;
+}
+
+.capy-contact-shadow {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  bottom: 23px;
+  width: 64%;
+  height: 13px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: #3827347a;
+  filter: blur(5px);
+  pointer-events: none;
+  transition:
+    opacity 180ms ease,
+    scale 180ms ease;
+}
+
+.capy-player.is-jumping .capy-contact-shadow {
+  opacity: 0.45;
+  scale: 0.72;
+}
+
+.capy-player.is-swimming .capy-contact-shadow {
+  opacity: 0.18;
 }
 
 .capy-plaza.is-club .capy-neighbor img,
