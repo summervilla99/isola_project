@@ -13,12 +13,12 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "@/lib/store";
-import { startClubBeat } from "@/lib/club-beat";
 import { playCapySound, type CapySound } from "@/lib/capy-sounds";
 import { doorScenarios, type DoorScenarioId } from "@/lib/door-scenarios";
 
 type Position = { x: number; y: number };
 type Zone = "village" | "club" | "spring";
+type ClubGenre = "house" | "edm";
 type SocialAction =
   "lie" | "nose" | "orange" | "chin" | "follow" | "gaze" | "chorus";
 type Neighbor = Position & {
@@ -31,6 +31,7 @@ type Neighbor = Position & {
   walking?: boolean;
   orange?: boolean;
   idleState?: number;
+  jumping?: boolean;
 };
 type PlazaProps = {
   islandId?: string;
@@ -59,6 +60,12 @@ const SPRING_START = { x: 50, y: 83 };
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 const animalSprite = "/capy-world/animal/player-v1.webp";
+const MUSIC = {
+  village: { src: "/audio/village.mp3", volume: 0.34 },
+  house: { src: "/audio/club-house.mp3", volume: 0.46 },
+  edm: { src: "/audio/club-edm.mp3", volume: 0.45 },
+  spring: { src: "/audio/spring.mp3", volume: 0.31 },
+} as const;
 
 function walkablePoint(point: Position, zone: Zone): Position {
   const club = zone === "club";
@@ -117,7 +124,10 @@ export default function CapyPlaza({
   const [doorHint, setDoorHint] = useState("");
   const doorVisits = useRef(0);
   const [dancing, setDancing] = useState(false);
-  const [musicOn, setMusicOn] = useState(false);
+  const [musicOn, setMusicOn] = useState(true);
+  const [musicBlocked, setMusicBlocked] = useState(true);
+  const [clubGenre, setClubGenre] = useState<ClubGenre>("house");
+  const [jumping, setJumping] = useState(false);
   const [bartenderOpen, setBartenderOpen] = useState(false);
   const [barStep, setBarStep] = useState<"hello" | "wriggling" | "served">(
     "hello",
@@ -148,9 +158,14 @@ export default function CapyPlaza({
   const orangeRef = useRef(false);
   orangeRef.current = orangeTarget === "self" || zone === "spring";
   const zoneRef = useRef<Zone>("village");
-  const audioContext = useRef<AudioContext | null>(null);
+  const musicRef = useRef<HTMLAudioElement | null>(null);
+  const musicUnlockedRef = useRef(false);
+  const jumpTimer = useRef<number | null>(null);
+  const jumpingRef = useRef(false);
+  const jumpActionRef = useRef<() => void>(() => {});
   const [neighbors, setNeighbors] = useState<Neighbor[]>([]);
   const remoteIdleTimers = useRef(new Map<string, number>());
+  const remoteJumpTimers = useRef(new Map<string, number>());
   const [connected, setConnected] = useState(false);
   const [connectionTimedOut, setConnectionTimedOut] = useState(false);
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
@@ -234,6 +249,73 @@ export default function CapyPlaza({
       if (soundOn) playCapySound(kind);
     },
     [soundOn],
+  );
+
+  const playMusic = useCallback(() => {
+    const audio = musicRef.current;
+    if (!audio) return;
+    musicUnlockedRef.current = true;
+    void audio
+      .play()
+      .then(() => setMusicBlocked(false))
+      .catch(() => setMusicBlocked(true));
+  }, []);
+
+  const switchMusic = useCallback(
+    (nextZone: Zone, nextGenre: ClubGenre = clubGenre) => {
+      const audio = musicRef.current;
+      if (!audio) return;
+      const track = nextZone === "club" ? MUSIC[nextGenre] : MUSIC[nextZone];
+      if (audio.getAttribute("src") !== track.src) {
+        audio.pause();
+        audio.src = track.src;
+      }
+      audio.volume = track.volume;
+      if (musicOn && musicUnlockedRef.current) playMusic();
+    },
+    [clubGenre, musicOn, playMusic],
+  );
+
+  const toggleMusic = () => {
+    if (musicOn && musicBlocked) {
+      playMusic();
+    } else if (musicOn) {
+      musicRef.current?.pause();
+      setMusicOn(false);
+      setMusicBlocked(false);
+    } else {
+      setMusicOn(true);
+      playMusic();
+    }
+  };
+
+  const jump = useCallback(() => {
+    if (guest || jumpingRef.current) return;
+    jumpingRef.current = true;
+    setJumping(true);
+    setBubble("폴짝! ✨");
+    markActive();
+    sound("kyu");
+    if (connected)
+      void channel.current?.send({
+        type: "broadcast",
+        event: "jump",
+        payload: { id: presenceIdRef.current, zone: zoneRef.current },
+      });
+    jumpTimer.current = window.setTimeout(() => {
+      jumpingRef.current = false;
+      setJumping(false);
+      jumpTimer.current = null;
+    }, 680);
+  }, [guest, connected, markActive, sound]);
+  jumpActionRef.current = jump;
+
+  useEffect(
+    () => () => {
+      if (jumpTimer.current) window.clearTimeout(jumpTimer.current);
+      musicRef.current?.pause();
+    },
+    [],
   );
 
   useEffect(() => {
@@ -334,6 +416,7 @@ export default function CapyPlaza({
         return;
       }
       zoneRef.current = next;
+      switchMusic(next);
       setZone(next);
       const start =
         next === "club" ? CLUB_START : next === "spring" ? SPRING_START : START;
@@ -358,9 +441,8 @@ export default function CapyPlaza({
       facingRef.current = 0;
       setFacing(0);
       moveSpeed.current = 0;
-      if (next !== "club") setMusicOn(false);
     },
-    [guest, onExplore, markActive],
+    [guest, onExplore, markActive, switchMusic],
   );
 
   const requestClubEntry = useCallback(() => {
@@ -601,6 +683,15 @@ export default function CapyPlaza({
       )
         return;
       if (
+        event.code === "Space" &&
+        !event.repeat &&
+        !(event.target as HTMLElement)?.closest("button, a")
+      ) {
+        event.preventDefault();
+        jumpActionRef.current();
+        return;
+      }
+      if (
         [
           "ArrowUp",
           "ArrowDown",
@@ -636,27 +727,28 @@ export default function CapyPlaza({
   }, [bubble, barStep]);
 
   useEffect(() => {
-    const context = audioContext.current;
-    if (!context || !musicOn || zone !== "club") {
-      if (context?.state === "running") void context.suspend();
-      return;
-    }
-    void context.resume();
-    return startClubBeat(context);
-  }, [musicOn, zone]);
+    if (!guest) switchMusic(zone, clubGenre);
+  }, [guest, zone, clubGenre, switchMusic]);
 
-  useEffect(
-    () => () => {
-      if (audioContext.current) void audioContext.current.close();
-    },
-    [],
-  );
+  useEffect(() => {
+    if (guest || !musicOn) return;
+    const resume = (event: Event) => {
+      if ((event.target as HTMLElement)?.closest?.("[data-music-control]"))
+        return;
+      if (musicRef.current?.paused) playMusic();
+    };
+    window.addEventListener("pointerdown", resume, true);
+    window.addEventListener("keydown", resume, true);
+    return () => {
+      window.removeEventListener("pointerdown", resume, true);
+      window.removeEventListener("keydown", resume, true);
+    };
+  }, [guest, musicOn, playMusic]);
 
-  const toggleMusic = () => {
-    if (!musicOn && !audioContext.current)
-      audioContext.current = new AudioContext();
-    if (!musicOn) void audioContext.current?.resume();
-    setMusicOn((current) => !current);
+  const changeClubGenre = () => {
+    const next = clubGenre === "house" ? "edm" : "house";
+    setClubGenre(next);
+    switchMusic("club", next);
   };
 
   useEffect(() => {
@@ -749,6 +841,29 @@ export default function CapyPlaza({
           }, 260),
         );
       })
+      .on("broadcast", { event: "jump" }, ({ payload }) => {
+        const peer = payload as { id?: string; zone?: Zone };
+        if (!peer.id || peer.id === presenceId || peer.zone !== zoneRef.current)
+          return;
+        setNeighbors((current) =>
+          current.map((item) =>
+            item.id === peer.id ? { ...item, jumping: true } : item,
+          ),
+        );
+        const previousTimer = remoteJumpTimers.current.get(peer.id);
+        if (previousTimer) window.clearTimeout(previousTimer);
+        remoteJumpTimers.current.set(
+          peer.id,
+          window.setTimeout(() => {
+            setNeighbors((current) =>
+              current.map((item) =>
+                item.id === peer.id ? { ...item, jumping: false } : item,
+              ),
+            );
+            remoteJumpTimers.current.delete(peer.id!);
+          }, 680),
+        );
+      })
       .on("broadcast", { event: "gesture" }, ({ payload }) => {
         const peer = payload as Neighbor;
         if (!visiblePeer(peer) || !peer.bubble) return;
@@ -839,6 +954,9 @@ export default function CapyPlaza({
       for (const timer of remoteIdleTimers.current.values())
         window.clearTimeout(timer);
       remoteIdleTimers.current.clear();
+      for (const timer of remoteJumpTimers.current.values())
+        window.clearTimeout(timer);
+      remoteJumpTimers.current.clear();
       channel.current = null;
       updateNeighborsRef.current = () => {};
       void client.removeChannel(room);
@@ -948,6 +1066,7 @@ export default function CapyPlaza({
             : "카피바라 마을 광장"
       }
     >
+      <audio ref={musicRef} loop preload="none" aria-hidden="true" />
       <div
         ref={map}
         className="capy-map"
@@ -1033,7 +1152,9 @@ export default function CapyPlaza({
           </>
         ) : zone === "club" ? (
           <>
-            <div className={`capy-dj ${musicOn ? "is-live" : ""}`}>
+            <div
+              className={`capy-dj ${musicOn && !musicBlocked ? "is-live" : ""}`}
+            >
               <img src="/capy-world/animal/dj-v1.webp" alt="" />
               <span>DJ 밤톨</span>
             </div>
@@ -1136,7 +1257,7 @@ export default function CapyPlaza({
         )}
         {!guest && (
           <div
-            className={`capy-player is-local ${walking ? "is-walking" : ""} ${dancing ? "is-dancing" : ""} ${guardStep === "charming" ? "is-charming" : ""} ${barStep === "wriggling" ? "is-bar-wriggling" : ""} ${puffing ? "is-puffing" : ""} ${idlePhase ? `is-idle-${idlePhase}` : ""} ${socialPose ? `is-social-${socialPose}` : ""} ${zone === "spring" ? "is-soaking" : ""}`}
+            className={`capy-player is-local ${walking ? "is-walking" : ""} ${jumping ? "is-jumping" : ""} ${dancing ? "is-dancing" : ""} ${guardStep === "charming" ? "is-charming" : ""} ${barStep === "wriggling" ? "is-bar-wriggling" : ""} ${puffing ? "is-puffing" : ""} ${idlePhase ? `is-idle-${idlePhase}` : ""} ${socialPose ? `is-social-${socialPose}` : ""} ${zone === "spring" ? "is-soaking" : ""}`}
             style={{
               left: `${position.x}%`,
               top: `${position.y}%`,
@@ -1206,7 +1327,7 @@ export default function CapyPlaza({
         {neighbors.map((neighbor) => (
           <div
             key={neighbor.id}
-            className={`capy-player capy-remote ${neighbor.walking ? "is-walking" : ""} ${neighbor.dancing ? "is-dancing" : ""} ${neighbor.idleState ? `is-idle-${neighbor.idleState}` : ""}`}
+            className={`capy-player capy-remote ${neighbor.walking ? "is-walking" : ""} ${neighbor.jumping ? "is-jumping" : ""} ${neighbor.dancing ? "is-dancing" : ""} ${neighbor.idleState ? `is-idle-${neighbor.idleState}` : ""}`}
             style={{
               left: `${neighbor.x}%`,
               top: `${neighbor.y}%`,
@@ -1398,6 +1519,24 @@ export default function CapyPlaza({
           </span>
         </div>
         <div className="capy-top-actions">
+          {!guest && zone !== "club" && (
+            <button
+              className="capy-round-button capy-bgm-button"
+              data-music-control
+              aria-label={
+                musicOn
+                  ? musicBlocked
+                    ? "배경음악 시작"
+                    : "배경음악 끄기"
+                  : "배경음악 켜기"
+              }
+              aria-pressed={musicOn && !musicBlocked}
+              onClick={toggleMusic}
+              title={musicOn && musicBlocked ? "눌러서 음악 시작" : "배경음악"}
+            >
+              {musicOn && !musicBlocked ? "♫" : "♪"}
+            </button>
+          )}
           {!guest && (
             <span className="capy-island-chip">
               {zone === "club"
@@ -1563,11 +1702,32 @@ export default function CapyPlaza({
                 </button>
                 <button
                   onClick={toggleMusic}
-                  aria-label={musicOn ? "음악 끄기" : "음악 켜기"}
-                  aria-pressed={musicOn}
+                  data-music-control
+                  aria-label={
+                    musicOn
+                      ? musicBlocked
+                        ? "클럽 음악 시작"
+                        : "클럽 음악 끄기"
+                      : "클럽 음악 켜기"
+                  }
+                  aria-pressed={musicOn && !musicBlocked}
                 >
-                  <span>{musicOn ? "🔊" : "🎵"}</span>
-                  <small>하우스 비트</small>
+                  <span>{musicOn && !musicBlocked ? "🔊" : "🎵"}</span>
+                  <small>{clubGenre === "house" ? "하우스" : "EDM"}</small>
+                </button>
+                <button
+                  onClick={changeClubGenre}
+                  data-music-control
+                  aria-label={
+                    clubGenre === "house"
+                      ? "EDM 음악으로 바꾸기"
+                      : "하우스 음악으로 바꾸기"
+                  }
+                >
+                  <span>⚡</span>
+                  <small>
+                    {clubGenre === "house" ? "EDM 전환" : "하우스 전환"}
+                  </small>
                 </button>
               </>
             ) : zone === "spring" ? (
@@ -1630,6 +1790,15 @@ export default function CapyPlaza({
                 </button>
               </>
             )}
+            <button
+              className="capy-jump-action"
+              onClick={jump}
+              aria-label="점프"
+              aria-keyshortcuts="Space"
+            >
+              <span>🐾</span>
+              <small>점프</small>
+            </button>
           </div>
           <div className="capy-mobile-pad" aria-label="이동 방향">
             <button
