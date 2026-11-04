@@ -1601,7 +1601,7 @@ button.capy-neighbor {
 }
 
 .capy-player img.is-front-facing {
-  scale: 0.84;
+  scale: 0.82;
   transform-origin: center bottom;
 }
 
