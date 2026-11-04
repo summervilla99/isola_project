@@ -397,14 +397,118 @@
 .capy-plaza.is-library .capy-map {
   background-image:
     image-set(
-      url("/capy-world/library-room-v1.avif") type("image/avif"),
-      url("/capy-world/library-room-v1.webp") type("image/webp")
+      url("/capy-world/library-room-v2.avif") type("image/avif"),
+      url("/capy-world/library-room-v2.webp") type("image/webp")
     ),
     image-set(
       url("/capy-world/library-yard-v1.avif") type("image/avif"),
       url("/capy-world/library-yard-v1.webp") type("image/webp")
     );
   box-shadow: inset 0 0 100px #5c2b2a20;
+}
+
+.capy-plaza.is-beach .capy-map {
+  background-image:
+    image-set(
+      url("/capy-world/beach-v1.avif") type("image/avif"),
+      url("/capy-world/beach-v1.webp") type("image/webp")
+    ),
+    image-set(
+      url("/capy-world/village-v3.avif") type("image/avif"),
+      url("/capy-world/village-v3.webp") type("image/webp")
+    );
+  box-shadow: inset 0 0 95px #183e5f26;
+}
+
+.capy-beach-path,
+.capy-beach-bench,
+.capy-beach-shore {
+  position: absolute;
+  z-index: 100;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fffaf0;
+  cursor: pointer;
+}
+.capy-beach-path {
+  left: 59%;
+  top: 62%;
+  transform: translate(-50%, -50%);
+}
+.capy-beach-bench {
+  left: 50%;
+  top: 84%;
+  transform: translate(-50%, -50%);
+}
+.capy-beach-shore {
+  left: 55%;
+  top: 61%;
+  transform: translate(-50%, -50%);
+}
+.capy-beach-path span,
+.capy-beach-bench span,
+.capy-beach-shore span {
+  display: inline-block;
+  padding: 8px 13px;
+  border: 1px solid #fff9e6bd;
+  border-radius: 18px;
+  background: #34566780;
+  box-shadow: 0 6px 20px #26394a4d;
+  backdrop-filter: blur(12px) saturate(1.2);
+  font-size: clamp(11px, 1.05vw, 15px);
+  font-weight: 900;
+  white-space: nowrap;
+  text-shadow: 0 1px 5px #233c4e;
+}
+.capy-beach-bench span {
+  background: #ab654e8a;
+}
+.capy-beach-shore span {
+  background: #27687a70;
+}
+
+.capy-plaza.is-beach .capy-player.is-swimming img {
+  width: clamp(110px, 13vw, 150px);
+  animation: capy-swim 1.35s ease-in-out infinite;
+  filter: drop-shadow(0 6px 5px #12557a70);
+}
+.capy-plaza.is-beach .capy-player.is-sunset-watching img {
+  animation: capy-sunset-breathe 2.8s ease-in-out infinite;
+}
+.capy-player.is-sunset-watching::before {
+  content: "✦";
+  position: absolute;
+  left: 49%;
+  bottom: 105%;
+  color: #ffe4a8;
+  font-size: 20px;
+  text-shadow: 0 0 12px #ffb46c;
+  animation: capy-sunset-sparkle 2s ease-in-out infinite alternate;
+}
+@keyframes capy-swim {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(2deg);
+  }
+}
+@keyframes capy-sunset-breathe {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes capy-sunset-sparkle {
+  to {
+    transform: translateY(-5px);
+    opacity: 0.45;
+  }
 }
 
 .capy-library-path,
@@ -451,12 +555,11 @@
 .capy-library-stack > span:last-child {
   display: inline-block;
   padding: 9px 14px;
-  border: 2px solid #fff3cf;
+  border: 1px solid #fff3cfd1;
   border-radius: 18px;
-  background: #7e574bdc;
-  box-shadow:
-    0 4px 0 #49352f,
-    0 8px 18px #271b2466;
+  background: #7e574b9e;
+  box-shadow: 0 8px 18px #271b2459;
+  backdrop-filter: blur(10px);
   font-size: clamp(11px, 1vw, 16px);
   font-weight: 900;
   white-space: nowrap;
@@ -464,16 +567,16 @@
 }
 
 .capy-library-path span {
-  background: #7e704add;
+  background: #7e704a9e;
 }
 .capy-library-door span {
-  background: #df805fe8;
+  background: #b66a56a8;
 }
 .capy-library-shelf > span {
-  background: #946552eb;
+  background: #946552a8;
 }
 .capy-library-stack > span:last-child {
-  background: #e4a466e8;
+  background: #bd8055b3;
 }
 .capy-stack-books {
   display: block;
@@ -487,27 +590,37 @@
 
 .capy-library-librarian {
   position: absolute;
-  z-index: 76;
-  left: 57%;
-  top: 49%;
+  z-index: 77;
+  left: 77%;
+  top: 53%;
   display: grid;
   justify-items: center;
-  width: 70px;
+  width: clamp(150px, 14vw, 190px);
+  transform: translate(-50%, -22%);
   border: 0;
   background: transparent;
   color: #fff7e7;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
   text-shadow: 0 2px 5px #4b302c;
   cursor: pointer;
 }
 .capy-library-librarian img {
-  width: 70px;
-  filter: drop-shadow(0 5px 3px #2b1b2170);
-  animation: capy-breathe 2.8s ease-in-out infinite;
+  width: 100%;
+  filter: drop-shadow(0 8px 8px #2b1b2175);
+  animation: capy-library-chair-breathe 3.2s ease-in-out infinite;
 }
 .capy-library-librarian .capy-npc-bubble {
   bottom: 100%;
+}
+@keyframes capy-library-chair-breathe {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(1.7deg) translateY(2px);
+  }
 }
 
 .capy-player.is-library-reading::before {
@@ -558,7 +671,7 @@
   display: grid;
   place-items: center;
   padding: 18px;
-  background: #271b2c99;
+  background: #271b2c6e;
   backdrop-filter: blur(6px);
 }
 .capy-library-notes {
@@ -569,12 +682,11 @@
   flex-direction: column;
   padding: 26px;
   overflow: hidden;
-  border: 3px solid #fff5db;
+  border: 1px solid #fff5dbdd;
   border-radius: 26px;
-  background: #fff4dd;
-  box-shadow:
-    0 14px 0 #8b6559,
-    0 25px 70px #1c111c99;
+  background: #fff4ddca;
+  box-shadow: 0 25px 70px #1c111c75;
+  backdrop-filter: blur(22px) saturate(1.2);
   color: #624637;
 }
 .capy-library-notes > small {
@@ -666,7 +778,7 @@
   padding: 11px 13px;
   margin-bottom: 8px;
   border-radius: 13px;
-  background: #fffaf0;
+  background: #fffaf0c9;
   box-shadow: 0 2px 0 #e1cdb5;
 }
 .capy-library-note-list article span {
@@ -692,6 +804,16 @@
 }
 
 @media (max-width: 700px) {
+  .capy-beach-path {
+    left: 56%;
+    top: 59%;
+  }
+  .capy-beach-bench {
+    display: none;
+  }
+  .capy-beach-shore {
+    top: 58%;
+  }
   .capy-library-path {
     left: 42%;
     top: 62%;
@@ -713,7 +835,9 @@
     top: 65%;
   }
   .capy-library-librarian {
-    left: 53%;
+    left: 56%;
+    width: 125px;
+    top: 55%;
   }
   .capy-library-notes {
     max-height: 82dvh;
@@ -879,12 +1003,13 @@
   padding: 4px 8px;
   border: 1px solid #fff1d9bd;
   border-radius: 20px;
-  background: #3f3540d9;
+  background: #3f35408c;
   color: #fff7e8;
   font-size: 9px;
   font-weight: 900;
-  opacity: 0;
-  transform: translateY(4px);
+  opacity: 1;
+  transform: translateY(0);
+  backdrop-filter: blur(8px);
   transition:
     opacity 180ms ease,
     transform 180ms ease;
@@ -1072,8 +1197,9 @@
   padding: 10px 14px;
   border: 2px solid #fff8e9;
   border-radius: 16px;
-  background: #fff0dbe9;
-  box-shadow: 0 4px 0 #9d6b7d;
+  background: #fff0dbaa;
+  box-shadow: 0 7px 20px #65475b55;
+  backdrop-filter: blur(12px);
   color: #6c485a;
   font-size: 12px;
   font-weight: 900;
@@ -1217,11 +1343,10 @@
 .capy-island-chip,
 .capy-place-label,
 .capy-hud-bottom {
-  border: 2px solid #fff8eb;
-  background: #fff8e4eb;
-  box-shadow:
-    0 4px 0 #7c5474b3,
-    0 12px 32px #53344838;
+  border: 1px solid #fff8ebc9;
+  background: #fff8e4b8;
+  box-shadow: 0 4px 16px #5334483b;
+  backdrop-filter: blur(14px) saturate(1.22);
   color: #653f57;
   font-size: 13px;
   font-weight: 800;
@@ -1278,12 +1403,11 @@
   right: max(24px, env(safe-area-inset-right));
   width: min(260px, calc(100vw - 36px));
   padding: 11px;
-  border: 3px solid #fffdf2;
+  border: 1px solid #fffdf2ce;
   border-radius: 22px;
-  background: #fff6df;
-  box-shadow:
-    0 7px 0 #a36b7e,
-    0 20px 50px #52334e7a;
+  background: #fff6dfbd;
+  box-shadow: 0 20px 50px #52334e5e;
+  backdrop-filter: blur(22px) saturate(1.25);
 }
 
 .capy-menu button {
@@ -1311,13 +1435,11 @@
   bottom: max(28px, env(safe-area-inset-bottom));
   width: min(420px, calc(100vw - 44px));
   padding: clamp(22px, 3vw, 32px);
-  border: 3px solid #fff8df;
+  border: 1px solid #fff8dfd6;
   border-radius: 28px 30px 25px 30px;
-  background: #fff3dbea;
-  box-shadow:
-    0 8px 0 #a5657c,
-    0 23px 62px #4c345a70;
-  backdrop-filter: blur(10px);
+  background: #fff3dbbf;
+  box-shadow: 0 23px 62px #4c345a60;
+  backdrop-filter: blur(18px) saturate(1.2);
   transform: rotate(-1deg);
 }
 
@@ -1478,12 +1600,11 @@ button.capy-neighbor {
   gap: 9px;
   width: min(310px, calc(100vw - 32px));
   padding: 19px;
-  border: 3px solid #fff9e9;
+  border: 1px solid #fff9e9d9;
   border-radius: 24px;
-  background: #fff4ddf5;
-  box-shadow:
-    0 6px 0 #a66b79,
-    0 20px 48px #4c304c66;
+  background: #fff4ddc4;
+  box-shadow: 0 20px 48px #4c304c5e;
+  backdrop-filter: blur(20px) saturate(1.2);
   color: #653f57;
 }
 
@@ -1627,11 +1748,12 @@ button.capy-neighbor {
   max-width: 150px;
   padding: 6px 9px;
   transform: translateX(-50%);
-  border: 2px solid #fff7e5;
+  border: 1px solid #fff7e5b8;
   border-radius: 14px;
-  background: #fff0dbea;
-  box-shadow: 0 3px 0 #9b6478;
-  color: #684657;
+  background: #313b4a61;
+  box-shadow: 0 5px 18px #2134454d;
+  backdrop-filter: blur(10px) saturate(1.25);
+  color: #fffaf2;
   font-size: 10px;
   font-style: normal;
   font-weight: 900;
@@ -1666,8 +1788,8 @@ button.capy-neighbor {
   transform: translateX(-50%);
   border: 1px solid #ffe6cb99;
   border-radius: 24px;
-  background: #27191ff0;
-  box-shadow: 0 20px 70px #1d1018b8;
+  background: #27191f9e;
+  box-shadow: 0 20px 70px #1d101899;
   color: #fff4e7;
   backdrop-filter: blur(18px);
 }
@@ -1855,8 +1977,8 @@ button.capy-neighbor {
   padding: 17px 18px;
   border: 1px solid #ffc9ad8f;
   border-radius: 22px;
-  background: #2a151ded;
-  box-shadow: 0 18px 55px #1908119c;
+  background: #2a151d99;
+  box-shadow: 0 18px 55px #19081178;
   color: #fff2e5;
   backdrop-filter: blur(15px);
 }
@@ -1921,7 +2043,7 @@ button.capy-neighbor {
   transform: translateX(-50%);
   border: 1px solid #fff1d2b8;
   border-radius: 22px;
-  background: #30212ddd;
+  background: #30212d9e;
   box-shadow: 0 16px 55px #24152885;
   color: #fff8e9;
   backdrop-filter: blur(16px);
@@ -1951,7 +2073,7 @@ button.capy-neighbor {
   padding: 7px 11px;
   border: 1px solid #ffe4c99c;
   border-radius: 12px;
-  background: #5a3548;
+  background: #5a3548a8;
   color: #fff6e9;
   font-size: 10px;
   font-weight: 900;
@@ -1980,10 +2102,13 @@ button.capy-neighbor {
   transform: translateX(-50%);
   min-width: 110px;
   padding: 9px 13px;
-  border: 2px solid #fffdf2;
+  border: 1px solid #fffdf2b8;
   border-radius: 16px;
-  background: #fff0d9;
-  box-shadow: 0 4px 0 #a36b7e;
+  background: #30435468;
+  box-shadow: 0 5px 19px #18394d50;
+  color: #fffdf7;
+  backdrop-filter: blur(12px) saturate(1.24);
+  text-shadow: 0 1px 4px #2236449c;
   font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
@@ -2032,10 +2157,11 @@ button.capy-neighbor {
   justify-content: center;
   border: 3px solid #fff9e9;
   border-radius: 22px;
-  background: #fff1daed;
+  background: #fff1dac9;
   box-shadow:
-    0 6px 0 #a6637d,
-    0 12px 25px #51344d70;
+    0 5px 0 #a6637db0,
+    0 12px 25px #51344d55;
+  backdrop-filter: blur(12px) saturate(1.2);
 }
 
 .capy-action-bar button span {
@@ -2049,7 +2175,7 @@ button.capy-neighbor {
 }
 
 .capy-action-bar .capy-jump-action {
-  background: #fff0bbee;
+  background: #fff0bbc5;
   box-shadow:
     0 6px 0 #a77760,
     0 12px 25px #51344d70;
@@ -2374,8 +2500,9 @@ button.capy-neighbor {
     height: 45px;
     border: 2px solid #fff8e9;
     border-radius: 14px;
-    background: #fff1dcea;
-    box-shadow: 0 4px 0 #a6637d;
+    background: #fff1dcbc;
+    box-shadow: 0 4px 0 #a6637da0;
+    backdrop-filter: blur(10px);
     font-size: 22px;
     font-weight: 900;
   }
@@ -2582,6 +2709,9 @@ button.capy-neighbor {
   .capy-plaza.is-library .capy-action-bar {
     bottom: max(165px, env(safe-area-inset-bottom));
   }
+  .capy-plaza.is-beach .capy-action-bar {
+    bottom: max(165px, env(safe-area-inset-bottom));
+  }
 }
 
 .capy-plaza.is-library .capy-player.is-library-napping img {
@@ -2623,7 +2753,11 @@ button.capy-neighbor {
   }
   .capy-plaza.is-library .capy-player.is-library-napping img,
   .capy-plaza.is-library .capy-player.is-library-stacking img,
-  .capy-library-stack.is-falling .capy-stack-books {
+  .capy-library-stack.is-falling .capy-stack-books,
+  .capy-library-librarian img,
+  .capy-plaza.is-beach .capy-player.is-swimming img,
+  .capy-plaza.is-beach .capy-player.is-sunset-watching img,
+  .capy-player.is-sunset-watching::before {
     animation: none;
   }
 }

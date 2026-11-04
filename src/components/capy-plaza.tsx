@@ -18,7 +18,8 @@ import { doorScenarios, type DoorScenarioId } from "@/lib/door-scenarios";
 import LibraryNotes from "@/components/library-notes";
 
 type Position = { x: number; y: number };
-type Zone = "village" | "club" | "spring" | "library-yard" | "library";
+type Zone =
+  "village" | "club" | "spring" | "library-yard" | "library" | "beach";
 type LibraryAction = "reading" | "napping" | "snacking" | "stacking";
 type ClubGenre = "house" | "edm";
 type SocialAction =
@@ -35,6 +36,7 @@ type Neighbor = Position & {
   idleState?: number;
   jumping?: boolean;
   libraryAction?: LibraryAction;
+  sunsetWatching?: boolean;
 };
 type PlazaProps = {
   islandId?: string;
@@ -62,9 +64,11 @@ const CLUB_START = { x: 50, y: 78 };
 const SPRING_START = { x: 50, y: 83 };
 const LIBRARY_YARD_START = { x: 46, y: 78 };
 const LIBRARY_START = { x: 52, y: 79 };
+const BEACH_START = { x: 58, y: 86 };
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 const animalSprite = "/capy-world/animal/player-v1.webp";
+const swimmingSprite = "/capy-world/animal/swimming-v1.webp";
 const MUSIC = {
   village: { src: "/audio/village.mp3", volume: 0.34 },
   house: { src: "/audio/club-house.mp3", volume: 0.46 },
@@ -76,9 +80,10 @@ function walkablePoint(point: Position, zone: Zone): Position {
   const club = zone === "club";
   const spring = zone === "spring";
   const library = zone === "library";
+  const beach = zone === "beach";
   const y = clamp(
     point.y,
-    club ? 48 : spring ? 49 : library ? 56 : 38,
+    club ? 48 : spring ? 49 : library ? 56 : beach ? 42 : 38,
     club ? 92 : 94,
   );
   const narrowEntrance = club ? y < 58 : y < 53;
@@ -89,24 +94,28 @@ function walkablePoint(point: Position, zone: Zone): Position {
         ? 17
         : library
           ? 24
-          : narrowEntrance
-            ? club
-              ? 33
-              : 43
-            : club
-              ? 14
-              : 8,
+          : beach
+            ? 14
+            : narrowEntrance
+              ? club
+                ? 33
+                : 43
+              : club
+                ? 14
+                : 8,
       spring
         ? 83
         : library
           ? 78
-          : narrowEntrance
-            ? club
-              ? 67
-              : 57
-            : club
-              ? 86
-              : 92,
+          : beach
+            ? 86
+            : narrowEntrance
+              ? club
+                ? 67
+                : 57
+              : club
+                ? 86
+                : 92,
     ),
     y,
   };
@@ -178,6 +187,7 @@ export default function CapyPlaza({
     null,
   );
   const [bookStack, setBookStack] = useState(0);
+  const [sunsetWatching, setSunsetWatching] = useState(false);
   const bookStackRef = useRef(bookStack);
   bookStackRef.current = bookStack;
   const libraryActionTimer = useRef<number | null>(null);
@@ -307,7 +317,7 @@ export default function CapyPlaza({
       const track =
         nextZone === "club"
           ? MUSIC[nextGenre]
-          : nextZone === "spring"
+          : nextZone === "spring" || nextZone === "beach"
             ? MUSIC.spring
             : MUSIC.village;
       if (audio.getAttribute("src") !== track.src) {
@@ -388,6 +398,10 @@ export default function CapyPlaza({
     if (walking) markActive();
   }, [walking, position, markActive]);
 
+  useEffect(() => {
+    if (walking && sunsetWatching) setSunsetWatching(false);
+  }, [walking, sunsetWatching]);
+
   const startSelfPress = (event: React.PointerEvent<HTMLDivElement>) => {
     event.stopPropagation();
     markActive();
@@ -443,6 +457,7 @@ export default function CapyPlaza({
           payload: {
             id: presenceIdRef.current,
             zone,
+            ...player.current,
             bubble: message,
             dancing: false,
           },
@@ -453,6 +468,7 @@ export default function CapyPlaza({
   const walkTo = useCallback((point: Position) => {
     destination.current = walkablePoint(point, zoneRef.current);
     setWalking(true);
+    setSunsetWatching(false);
   }, []);
 
   const changeZone = useCallback(
@@ -473,7 +489,9 @@ export default function CapyPlaza({
               ? LIBRARY_YARD_START
               : next === "library"
                 ? LIBRARY_START
-                : START;
+                : next === "beach"
+                  ? BEACH_START
+                  : START;
       player.current = start;
       destination.current = start;
       heldKeys.current.clear();
@@ -496,6 +514,7 @@ export default function CapyPlaza({
       setLibraryNotesOpen(false);
       setLibraryAction(null);
       setBookStack(0);
+      setSunsetWatching(false);
       markActive();
       facingRef.current = 0;
       setFacing(0);
@@ -541,6 +560,11 @@ export default function CapyPlaza({
   useEffect(() => {
     if (!guest && zone === "village" && position.x <= 39 && position.y >= 53)
       changeZone("library-yard");
+  }, [guest, zone, position, changeZone]);
+
+  useEffect(() => {
+    if (!guest && zone === "village" && position.x >= 62 && position.y >= 65)
+      changeZone("beach");
   }, [guest, zone, position, changeZone]);
 
   const finishCharm = () => {
@@ -870,6 +894,7 @@ export default function CapyPlaza({
           facing: peer.facing ?? 0,
           idleState: peer.idleState ?? 0,
           orange: !!peer.orange,
+          sunsetWatching: !!peer.sunsetWatching,
         })),
       );
     };
@@ -912,6 +937,23 @@ export default function CapyPlaza({
             );
             remoteIdleTimers.current.delete(peer.id);
           }, 260),
+        );
+      })
+      .on("broadcast", { event: "sunset" }, ({ payload }) => {
+        const peer = payload as Neighbor;
+        if (!visiblePeer(peer)) return;
+        setNeighbors((current) =>
+          current.map((item) =>
+            item.id === peer.id
+              ? {
+                  ...item,
+                  x: peer.x,
+                  y: peer.y,
+                  sunsetWatching: true,
+                  walking: false,
+                }
+              : item,
+          ),
         );
       })
       .on("broadcast", { event: "jump" }, ({ payload }) => {
@@ -1057,6 +1099,7 @@ export default function CapyPlaza({
             facing: facingRef.current,
             idleState: idlePhaseRef.current,
             orange: orangeRef.current,
+            sunsetWatching: false,
           });
         } else if (
           status === "CHANNEL_ERROR" ||
@@ -1098,9 +1141,18 @@ export default function CapyPlaza({
         facing: facingRef.current,
         idleState: idlePhase,
         orange: orangeTarget === "self" || zone === "spring",
+        sunsetWatching,
       });
     }
-  }, [zone, connected, presenceName, idlePhase, orangeTarget, walking]);
+  }, [
+    zone,
+    connected,
+    presenceName,
+    idlePhase,
+    orangeTarget,
+    walking,
+    sunsetWatching,
+  ]);
 
   useEffect(() => {
     if (connected) updateNeighborsRef.current();
@@ -1206,6 +1258,48 @@ export default function CapyPlaza({
       });
   };
 
+  const watchSunset = () => {
+    const participants = [
+      presenceIdRef.current,
+      ...neighbors.map((neighbor) => neighbor.id),
+    ].sort();
+    const spot = {
+      x:
+        50 +
+        (participants.indexOf(presenceIdRef.current) -
+          (participants.length - 1) / 2) *
+          6,
+      y: 81,
+    };
+    player.current = spot;
+    destination.current = spot;
+    setPosition(spot);
+    setWalking(false);
+    setSunsetWatching(true);
+    gesture("같이 노을 볼래? 🌅");
+    if (connected)
+      void channel.current?.send({
+        type: "broadcast",
+        event: "sunset",
+        payload: {
+          id: presenceIdRef.current,
+          zone: "beach",
+          ...spot,
+        },
+      });
+  };
+
+  const swimOrReturn = () => {
+    const swimming = position.y < 78;
+    walkTo({ x: position.x, y: swimming ? 86 : 55 });
+    gesture(swimming ? "모래사장으로 꾸물꾸물 🐾" : "첨벙! 바다로 간다 💦");
+  };
+
+  const goLighthouse = () => {
+    walkTo({ x: 84, y: 57 });
+    gesture("등대 불빛을 따라 헤엄헤엄 ✨");
+  };
+
   const handleMapClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (guest) {
       onExplore?.();
@@ -1241,13 +1335,20 @@ export default function CapyPlaza({
           ? LIBRARY_YARD_START
           : zone === "library"
             ? LIBRARY_START
-            : START;
+            : zone === "beach"
+              ? BEACH_START
+              : START;
   const cameraX = reducedMotion
     ? 0
     : clamp((cameraFocus.x - position.x) * 0.48, -15, 15);
   const cameraY = reducedMotion
     ? 0
     : clamp((cameraFocus.y - position.y) * 0.3, -8, 8);
+  const beachCameraX = clamp((50 - position.x) * 1.08, -39, 39);
+  const swimming = zone === "beach" && position.y < 78;
+  const sunsetCount =
+    Number(sunsetWatching) +
+    neighbors.filter((neighbor) => neighbor.sunsetWatching).length;
 
   return (
     <section
@@ -1261,7 +1362,9 @@ export default function CapyPlaza({
               ? "꾸벅 도서관 앞마당"
               : zone === "library"
                 ? "꾸벅 도서관"
-                : "카피바라 마을 광장"
+                : zone === "beach"
+                  ? "등대 해변"
+                  : "카피바라 마을 광장"
       }
     >
       <audio ref={musicRef} loop preload="none" aria-hidden="true" />
@@ -1269,7 +1372,10 @@ export default function CapyPlaza({
         ref={map}
         className="capy-map"
         style={{
-          transform: `translate(calc(-50% + ${cameraX}vw), calc(-50% + ${cameraY}dvh))`,
+          transform:
+            zone === "beach"
+              ? `translate(calc(-50% + ${beachCameraX}%), calc(-50% + ${cameraY}dvh))`
+              : `translate(calc(-50% + ${cameraX}vw), calc(-50% + ${cameraY}dvh))`,
         }}
         onClick={handleMapClick}
       >
@@ -1339,13 +1445,7 @@ export default function CapyPlaza({
               }}
             >
               <i aria-hidden="true">♨</i>
-              <span>
-                {springDiscovered
-                  ? "비밀 귤 온천 들어가기"
-                  : springClues
-                    ? "수상한 바위 다시 누르기"
-                    : ""}
-              </span>
+              <span>수상한 바위</span>
             </button>
             <button
               className="capy-library-path"
@@ -1356,6 +1456,16 @@ export default function CapyPlaza({
               }}
             >
               <span>← 꾸벅 도서관</span>
+            </button>
+            <button
+              className="capy-beach-path"
+              aria-label="오른쪽 바닷길로 등대 해변 가기"
+              onClick={(event) => {
+                event.stopPropagation();
+                changeZone("beach");
+              }}
+            >
+              <span>등대 해변 →</span>
             </button>
           </>
         ) : zone === "club" ? (
@@ -1463,7 +1573,10 @@ export default function CapyPlaza({
               {npcBubbleFor === "librarian" && npcBubble && (
                 <i className="capy-npc-bubble">{npcBubble}</i>
               )}
-              <img src={animalSprite} alt="" />
+              <img
+                src="/capy-world/animal/librarian-seated-v1.webp"
+                alt="의자에 앉아 책을 읽다 조는 카피바라 사서"
+              />
               <span>사서 꾸벅</span>
             </button>
             <button
@@ -1478,6 +1591,31 @@ export default function CapyPlaza({
                 {"📚".repeat(Math.max(1, bookStack))}
               </span>
               <span>책 탑 {bookStack}/5</span>
+            </button>
+          </>
+        ) : zone === "beach" ? (
+          <>
+            <button
+              className="capy-beach-bench"
+              aria-label="친구와 나란히 노을 바라보기"
+              onClick={(event) => {
+                event.stopPropagation();
+                watchSunset();
+              }}
+            >
+              <span>
+                🌅 함께 노을 보기{sunsetCount > 0 ? ` · ${sunsetCount}명` : ""}
+              </span>
+            </button>
+            <button
+              className="capy-beach-shore"
+              aria-label="해변 바다로 헤엄치기"
+              onClick={(event) => {
+                event.stopPropagation();
+                swimOrReturn();
+              }}
+            >
+              <span>물결을 따라 헤엄치기 💦</span>
             </button>
           </>
         ) : (
@@ -1529,7 +1667,7 @@ export default function CapyPlaza({
         )}
         {!guest && (
           <div
-            className={`capy-player is-local ${walking ? "is-walking" : ""} ${jumping ? "is-jumping" : ""} ${dancing ? "is-dancing" : ""} ${guardStep === "charming" ? "is-charming" : ""} ${barStep === "wriggling" ? "is-bar-wriggling" : ""} ${puffing ? "is-puffing" : ""} ${idlePhase ? `is-idle-${idlePhase}` : ""} ${socialPose ? `is-social-${socialPose}` : ""} ${libraryAction ? `is-library-${libraryAction}` : ""} ${zone === "spring" ? "is-soaking" : ""}`}
+            className={`capy-player is-local ${walking ? "is-walking" : ""} ${jumping ? "is-jumping" : ""} ${dancing ? "is-dancing" : ""} ${guardStep === "charming" ? "is-charming" : ""} ${barStep === "wriggling" ? "is-bar-wriggling" : ""} ${puffing ? "is-puffing" : ""} ${idlePhase ? `is-idle-${idlePhase}` : ""} ${socialPose ? `is-social-${socialPose}` : ""} ${libraryAction ? `is-library-${libraryAction}` : ""} ${zone === "spring" ? "is-soaking" : ""} ${swimming ? "is-swimming" : ""} ${sunsetWatching ? "is-sunset-watching" : ""}`}
             style={{
               left: `${position.x}%`,
               top: `${position.y}%`,
@@ -1560,7 +1698,7 @@ export default function CapyPlaza({
               </i>
             )}
             <img
-              src={walkingSprite(facing).src}
+              src={swimming ? swimmingSprite : walkingSprite(facing).src}
               style={{ scale: walkingSprite(facing).flip ? "-1 1" : undefined }}
               alt=""
               draggable={false}
@@ -1599,7 +1737,7 @@ export default function CapyPlaza({
         {neighbors.map((neighbor) => (
           <div
             key={neighbor.id}
-            className={`capy-player capy-remote ${neighbor.walking ? "is-walking" : ""} ${neighbor.jumping ? "is-jumping" : ""} ${neighbor.dancing ? "is-dancing" : ""} ${neighbor.libraryAction ? `is-library-${neighbor.libraryAction}` : ""} ${neighbor.idleState ? `is-idle-${neighbor.idleState}` : ""}`}
+            className={`capy-player capy-remote ${neighbor.walking ? "is-walking" : ""} ${neighbor.jumping ? "is-jumping" : ""} ${neighbor.dancing ? "is-dancing" : ""} ${neighbor.libraryAction ? `is-library-${neighbor.libraryAction}` : ""} ${neighbor.idleState ? `is-idle-${neighbor.idleState}` : ""} ${zone === "beach" && neighbor.y < 78 ? "is-swimming" : ""} ${neighbor.sunsetWatching ? "is-sunset-watching" : ""}`}
             style={{
               left: `${neighbor.x}%`,
               top: `${neighbor.y}%`,
@@ -1624,7 +1762,11 @@ export default function CapyPlaza({
               <i className="capy-orange">🍊</i>
             )}
             <img
-              src={walkingSprite(neighbor.facing).src}
+              src={
+                zone === "beach" && neighbor.y < 78
+                  ? swimmingSprite
+                  : walkingSprite(neighbor.facing).src
+              }
               style={{
                 scale: walkingSprite(neighbor.facing).flip ? "-1 1" : undefined,
               }}
@@ -1836,7 +1978,9 @@ export default function CapyPlaza({
                     ? "도서관 앞마당"
                     : zone === "library"
                       ? "꾸벅 도서관"
-                      : islandName}{" "}
+                      : zone === "beach"
+                        ? "등대 해변"
+                        : islandName}{" "}
               ·{" "}
               {connected
                 ? `${neighbors.length + 1}명 온라인`
@@ -1909,6 +2053,16 @@ export default function CapyPlaza({
                   <BookOpen size={18} /> 꾸벅 도서관
                 </button>
               )}
+              {zone !== "beach" && (
+                <button
+                  onClick={() => {
+                    changeZone("beach");
+                    setMenuOpen(false);
+                  }}
+                >
+                  <span>🌊</span> 등대 해변
+                </button>
+              )}
               <button
                 onClick={() => {
                   setNicknameDraft(nickname);
@@ -1971,8 +2125,14 @@ export default function CapyPlaza({
                   ? "도서관 꽃길"
                   : zone === "library"
                     ? "꾸벅 도서관"
-                    : "노을 마을"}{" "}
-            <small>바닥을 누르면 걸어가요</small>
+                    : zone === "beach"
+                      ? "등대 해변"
+                      : "노을 마을"}{" "}
+            <small>
+              {zone === "beach"
+                ? "바다를 누르면 헤엄쳐요"
+                : "바닥을 누르면 걸어가요"}
+            </small>
             <small className="capy-live-count">
               {connected
                 ? `${neighbors.length + 1}명 온라인`
@@ -2066,6 +2226,33 @@ export default function CapyPlaza({
                 <button onClick={stackBook} aria-label="책 탑 쌓기">
                   <span>📚</span>
                   <small>책 탑</small>
+                </button>
+              </>
+            ) : zone === "beach" ? (
+              <>
+                <button
+                  onClick={swimOrReturn}
+                  aria-label={
+                    swimming ? "모래사장으로 돌아가기" : "바다로 헤엄치기"
+                  }
+                >
+                  <span>{swimming ? "🐾" : "🌊"}</span>
+                  <small>{swimming ? "해변으로" : "헤엄치기"}</small>
+                </button>
+                <button
+                  onClick={watchSunset}
+                  aria-label="친구와 함께 노을 바라보기"
+                  aria-pressed={sunsetWatching}
+                >
+                  <span>🌅</span>
+                  <small>노을 보기</small>
+                </button>
+                <button
+                  onClick={goLighthouse}
+                  aria-label="등대 쪽으로 헤엄치기"
+                >
+                  <span>🗼</span>
+                  <small>등대 쪽</small>
                 </button>
               </>
             ) : zone === "spring" ? (
@@ -2188,9 +2375,13 @@ export default function CapyPlaza({
                   ? "쉿… 사서 꾸벅이 졸고 있어요 · 책장을 눌러 노트 남기기"
                   : zone === "library-yard"
                     ? "바닷바람이 책장을 넘겨요 · 문을 눌러 들어가기"
-                    : springDiscovered
-                      ? "왼쪽 꽃길엔 도서관 · 오른쪽 꽃길엔 온천"
-                      : "왼쪽 꽃길엔 도서관 · 김이 나는 바위를 찾아보세요"}
+                    : zone === "beach"
+                      ? swimming
+                        ? "물결을 따라 헤엄치는 중 · 오른쪽엔 작은 등대"
+                        : "바다를 누르면 헤엄쳐요 · 오른쪽엔 작은 등대"
+                      : springDiscovered
+                        ? "왼쪽 꽃길엔 도서관 · 오른쪽 꽃길엔 온천"
+                        : "왼쪽 꽃길엔 도서관 · 김이 나는 바위를 찾아보세요"}
           </div>
         </>
       )}
