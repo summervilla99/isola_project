@@ -154,18 +154,60 @@ export default function CapyPlaza({
   const [connected, setConnected] = useState(false);
   const [connectionTimedOut, setConnectionTimedOut] = useState(false);
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
+  const [nickname, setNickname] = useState("");
+  const [nicknameDraft, setNicknameDraft] = useState("");
+  const [nicknameOpen, setNicknameOpen] = useState(false);
   const presenceIdRef = useRef(
     `visitor-${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`,
   );
   const presenceName =
-    !demo && userName
+    nickname ||
+    (!demo && userName
       ? userName
-      : `카피바라 ${presenceIdRef.current.slice(-4)}`;
+      : `카피바라 ${presenceIdRef.current.slice(-4)}`);
+  const presenceNameRef = useRef(presenceName);
+  presenceNameRef.current = presenceName;
   const channel = useRef<ReturnType<
     NonNullable<typeof supabase>["channel"]
   > | null>(null);
   const lastSent = useRef(0);
   const updateNeighborsRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    if (guest) return;
+    try {
+      const saved = localStorage.getItem("capybara-story-nickname-v1");
+      if (saved?.trim()) {
+        const name = saved.trim().slice(0, 12);
+        setNickname(name);
+        setNicknameDraft(name);
+      } else {
+        setNicknameOpen(true);
+      }
+    } catch {
+      setNicknameOpen(true);
+    }
+  }, [guest]);
+
+  useEffect(() => {
+    if (guest) return;
+    try {
+      if (localStorage.getItem("capybara-story-spring-v1") === "true")
+        setSpringDiscovered(true);
+    } catch {}
+  }, [guest]);
+
+  const saveNickname = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = nicknameDraft.replace(/\s+/g, " ").trim().slice(0, 12);
+    if (!name) return;
+    setNickname(name);
+    setNicknameDraft(name);
+    setNicknameOpen(false);
+    try {
+      localStorage.setItem("capybara-story-nickname-v1", name);
+    } catch {}
+  };
 
   useEffect(() => {
     const image = new Image();
@@ -434,6 +476,9 @@ export default function CapyPlaza({
     );
     if (next >= 3) {
       setSpringDiscovered(true);
+      try {
+        localStorage.setItem("capybara-story-spring-v1", "true");
+      } catch {}
       const spring = new Image();
       spring.src = "/capy-world/hot-spring-v1.webp";
     }
@@ -769,7 +814,7 @@ export default function CapyPlaza({
           setConnectionTimedOut(false);
           await room.track({
             id: presenceId,
-            name: presenceName,
+            name: presenceNameRef.current,
             zone: zoneRef.current,
             ...player.current,
             facing: facingRef.current,
@@ -801,7 +846,7 @@ export default function CapyPlaza({
       setConnectionTimedOut(false);
       setNeighbors([]);
     };
-  }, [guest, presenceName, reconnectAttempt]);
+  }, [guest, reconnectAttempt]);
 
   useEffect(() => {
     if (connected) {
@@ -814,15 +859,18 @@ export default function CapyPlaza({
         idleState: idlePhase,
         orange: orangeTarget === "self" || zone === "spring",
       });
-      updateNeighborsRef.current();
     }
   }, [zone, connected, presenceName, idlePhase, orangeTarget, walking]);
+
+  useEffect(() => {
+    if (connected) updateNeighborsRef.current();
+  }, [zone, connected]);
 
   useEffect(() => {
     if (
       !connected ||
       !channel.current ||
-      performance.now() - lastSent.current < 100
+      performance.now() - lastSent.current < 140
     )
       return;
     lastSent.current = performance.now();
@@ -1124,7 +1172,7 @@ export default function CapyPlaza({
               alt=""
               draggable={false}
             />
-            <span className="capy-name">나</span>
+            <span className="capy-name">{nickname || "나"}</span>
             {chorusCount >= 2 && (
               <span className="capy-chorus-sticker">카피바라 합창단 ✦</span>
             )}
@@ -1315,6 +1363,33 @@ export default function CapyPlaza({
         </div>
       )}
 
+      {!guest && nicknameOpen && (
+        <form className="capy-nickname-card" onSubmit={saveNickname}>
+          <button
+            type="button"
+            className="capy-nickname-close"
+            aria-label="닉네임 설정 닫기"
+            onClick={() => setNicknameOpen(false)}
+          >
+            <X size={17} />
+          </button>
+          <small>✿ 내 카피바라 이름표</small>
+          <strong>여기선 뭐라고 불러줄까?</strong>
+          <label htmlFor="capy-nickname">닉네임</label>
+          <input
+            id="capy-nickname"
+            value={nicknameDraft}
+            onChange={(event) => setNicknameDraft(event.target.value)}
+            maxLength={12}
+            placeholder="예: 귤먹는 밤톨"
+            autoComplete="nickname"
+          />
+          <button type="submit" disabled={!nicknameDraft.trim()}>
+            이름표 달기 ✦
+          </button>
+        </form>
+      )}
+
       <header className="capy-hud-top">
         <div className="capy-brand">
           <span className="capy-brand-icon">✿</span>
@@ -1392,6 +1467,15 @@ export default function CapyPlaza({
                   <span>♨</span> 비밀 귤 온천
                 </button>
               )}
+              <button
+                onClick={() => {
+                  setNicknameDraft(nickname);
+                  setNicknameOpen(true);
+                  setMenuOpen(false);
+                }}
+              >
+                ✿ 닉네임 바꾸기
+              </button>
               <button onClick={onHome}>
                 <Home size={18} /> 나의 집
               </button>

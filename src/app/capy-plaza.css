@@ -479,9 +479,9 @@
 
 .capy-spring-secret {
   position: absolute;
-  z-index: 72;
-  left: 84%;
-  top: 74%;
+  z-index: 96;
+  left: 55%;
+  top: 72%;
   display: grid;
   place-items: center;
   width: clamp(72px, 7vw, 105px);
@@ -1109,8 +1109,87 @@ button.capy-neighbor {
 
 .capy-remote {
   transition:
-    left 130ms linear,
-    top 130ms linear;
+    left 230ms ease-out,
+    top 230ms ease-out;
+}
+
+.capy-nickname-card {
+  position: absolute;
+  z-index: 9;
+  top: max(88px, calc(env(safe-area-inset-top) + 70px));
+  left: max(24px, env(safe-area-inset-left));
+  display: grid;
+  gap: 9px;
+  width: min(310px, calc(100vw - 32px));
+  padding: 19px;
+  border: 3px solid #fff9e9;
+  border-radius: 24px;
+  background: #fff4ddf5;
+  box-shadow:
+    0 6px 0 #a66b79,
+    0 20px 48px #4c304c66;
+  color: #653f57;
+}
+
+.capy-nickname-card small {
+  color: #ed6d91;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.capy-nickname-card strong {
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.capy-nickname-card label {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.capy-nickname-card input {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 2px solid #e7c9ba;
+  border-radius: 12px;
+  background: #fffdf7;
+  color: #593b4d;
+  font: inherit;
+}
+
+.capy-nickname-card input:focus-visible {
+  outline: 3px solid #f47c9d;
+  outline-offset: 2px;
+}
+
+.capy-nickname-card > button[type="submit"] {
+  min-height: 42px;
+  border: 2px solid #fff8ec;
+  border-radius: 12px;
+  background: #ed7393;
+  box-shadow: 0 3px 0 #a94c70;
+  color: #fff;
+  font-weight: 900;
+}
+
+.capy-nickname-card > button[type="submit"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.capy-nickname-card .capy-nickname-close {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: #f8dce1;
+  color: #74485c;
 }
 
 .capy-player.is-walking img {
@@ -2009,9 +2088,10 @@ button.capy-neighbor {
     padding: 6px 9px;
     font-size: 9px;
   }
-  .capy-spring-secret {
-    left: 53%;
-    top: 72%;
+  .capy-nickname-card {
+    top: max(82px, calc(env(safe-area-inset-top) + 70px));
+    left: 50%;
+    transform: translateX(-50%);
   }
   .capy-spring-friend-one {
     left: 43%;
@@ -2082,6 +2162,9 @@ button.capy-neighbor {
 
 @media (prefers-reduced-motion: reduce) {
   .capy-map {
+    transition: none;
+  }
+  .capy-remote {
     transition: none;
   }
   .capy-atmosphere,
