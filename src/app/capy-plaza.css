@@ -1600,6 +1600,11 @@ button.capy-neighbor {
   z-index: 1;
 }
 
+.capy-player img.is-front-facing {
+  scale: 0.84;
+  transform-origin: center bottom;
+}
+
 .capy-contact-shadow {
   position: absolute;
   z-index: 0;

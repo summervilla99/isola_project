@@ -1713,6 +1713,11 @@ export default function CapyPlaza({
               </i>
             )}
             <img
+              className={
+                !swimming && walkingSprite(facing).src === frontSprite
+                  ? "is-front-facing"
+                  : undefined
+              }
               src={swimming ? swimmingSprite : walkingSprite(facing).src}
               style={{ scale: walkingSprite(facing).flip ? "-1 1" : undefined }}
               alt=""
@@ -1778,6 +1783,12 @@ export default function CapyPlaza({
               <i className="capy-orange">🍊</i>
             )}
             <img
+              className={
+                !(zone === "beach" && neighbor.y < 78) &&
+                walkingSprite(neighbor.facing).src === frontSprite
+                  ? "is-front-facing"
+                  : undefined
+              }
               src={
                 zone === "beach" && neighbor.y < 78
                   ? swimmingSprite
