@@ -78,45 +78,15 @@ const MUSIC = {
 
 function walkablePoint(point: Position, zone: Zone): Position {
   const club = zone === "club";
-  const spring = zone === "spring";
   const library = zone === "library";
   const beach = zone === "beach";
   const y = clamp(
     point.y,
-    club ? 48 : spring ? 49 : library ? 56 : beach ? 42 : 38,
+    club ? 48 : zone === "spring" ? 49 : library ? 56 : beach ? 42 : 38,
     club ? 92 : 94,
   );
-  const narrowEntrance = club ? y < 58 : y < 53;
   return {
-    x: clamp(
-      point.x,
-      spring
-        ? 17
-        : library
-          ? 24
-          : beach
-            ? 14
-            : narrowEntrance
-              ? club
-                ? 33
-                : 43
-              : club
-                ? 14
-                : 8,
-      spring
-        ? 83
-        : library
-          ? 78
-          : beach
-            ? 86
-            : narrowEntrance
-              ? club
-                ? 67
-                : 57
-              : club
-                ? 86
-                : 92,
-    ),
+    x: clamp(point.x, 8, 92),
     y,
   };
 }
@@ -147,6 +117,7 @@ export default function CapyPlaza({
   const padDirection = useRef<Position | null>(null);
   const moveSpeed = useRef(0);
   const [position, setPosition] = useState<Position>(START);
+  const [mapSize, setMapSize] = useState({ width: 0, viewportWidth: 0 });
   const [walking, setWalking] = useState(false);
   const [facing, setFacing] = useState(0);
   const facingRef = useRef(0);
@@ -236,6 +207,28 @@ export default function CapyPlaza({
   > | null>(null);
   const lastSent = useRef(0);
   const updateNeighborsRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    const element = map.current;
+    if (!element) return;
+    const measure = () => {
+      const width = element.offsetWidth;
+      const viewportWidth = window.innerWidth;
+      setMapSize((current) =>
+        current.width === width && current.viewportWidth === viewportWidth
+          ? current
+          : { width, viewportWidth },
+      );
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    window.addEventListener("resize", measure);
+    measure();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
 
   useEffect(() => {
     if (guest) return;
@@ -347,7 +340,7 @@ export default function CapyPlaza({
     if (guest || jumpingRef.current) return;
     jumpingRef.current = true;
     setJumping(true);
-    setBubble("폴짝! ✨");
+    setBubble("");
     markActive();
     sound("kyu");
     if (connected)
@@ -558,12 +551,12 @@ export default function CapyPlaza({
   }, [position, zone, guest, guardOpen, requestClubEntry]);
 
   useEffect(() => {
-    if (!guest && zone === "village" && position.x <= 39 && position.y >= 53)
+    if (!guest && zone === "village" && position.x <= 9 && position.y >= 53)
       changeZone("library-yard");
   }, [guest, zone, position, changeZone]);
 
   useEffect(() => {
-    if (!guest && zone === "village" && position.x >= 62 && position.y >= 65)
+    if (!guest && zone === "village" && position.x >= 91 && position.y >= 53)
       changeZone("beach");
   }, [guest, zone, position, changeZone]);
 
@@ -1338,13 +1331,18 @@ export default function CapyPlaza({
             : zone === "beach"
               ? BEACH_START
               : START;
-  const cameraX = reducedMotion
-    ? 0
-    : clamp((cameraFocus.x - position.x) * 0.48, -15, 15);
   const cameraY = reducedMotion
     ? 0
     : clamp((cameraFocus.y - position.y) * 0.3, -8, 8);
-  const beachCameraX = clamp((50 - position.x) * 1.08, -39, 39);
+  const horizontalTravel = Math.max(
+    0,
+    (mapSize.width - mapSize.viewportWidth) / 2,
+  );
+  const cameraX = clamp(
+    (0.5 - position.x / 100) * mapSize.width,
+    -horizontalTravel,
+    horizontalTravel,
+  );
   const swimming = zone === "beach" && position.y < 78;
   const sunsetCount =
     Number(sunsetWatching) +
@@ -1372,10 +1370,7 @@ export default function CapyPlaza({
         ref={map}
         className="capy-map"
         style={{
-          transform:
-            zone === "beach"
-              ? `translate(calc(-50% + ${beachCameraX}%), calc(-50% + ${cameraY}dvh))`
-              : `translate(calc(-50% + ${cameraX}vw), calc(-50% + ${cameraY}dvh))`,
+          transform: `translate(calc(-50% + ${cameraX}px), calc(-50% + ${cameraY}dvh))`,
         }}
         onClick={handleMapClick}
       >
@@ -2010,6 +2005,15 @@ export default function CapyPlaza({
           </button>
         </div>
       </header>
+
+      {zone === "village" && !guest && (
+        <nav className="capy-mobile-routes" aria-label="다른 장소로 이동">
+          <button onClick={() => changeZone("library-yard")}>
+            ↖ 꾸벅 도서관
+          </button>
+          <button onClick={() => changeZone("beach")}>↗ 등대 해변</button>
+        </nav>
+      )}
 
       {menuOpen && (
         <nav className="capy-menu" aria-label="마을 메뉴">
