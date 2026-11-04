@@ -153,6 +153,7 @@ export default function CapyPlaza({
   const remoteIdleTimers = useRef(new Map<string, number>());
   const [connected, setConnected] = useState(false);
   const [connectionTimedOut, setConnectionTimedOut] = useState(false);
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const presenceIdRef = useRef(
     `visitor-${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`,
   );
@@ -622,7 +623,19 @@ export default function CapyPlaza({
     });
     channel.current = room;
     let subscribed = false;
+    let disposed = false;
+    let retryTimer: number | undefined;
     setConnectionTimedOut(false);
+    const retry = () => {
+      if (disposed || retryTimer !== undefined) return;
+      subscribed = false;
+      setConnected(false);
+      setConnectionTimedOut(true);
+      setNeighbors([]);
+      retryTimer = window.setTimeout(() => {
+        setReconnectAttempt((attempt) => attempt + 1);
+      }, 3000);
+    };
     const visiblePeer = (peer: Neighbor) =>
       peer.id &&
       peer.id !== presenceId &&
@@ -747,7 +760,10 @@ export default function CapyPlaza({
         }
       })
       .subscribe(async (status) => {
+        if (disposed) return;
         if (status === "SUBSCRIBED") {
+          if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+          retryTimer = undefined;
           subscribed = true;
           setConnected(true);
           setConnectionTimedOut(false);
@@ -765,32 +781,16 @@ export default function CapyPlaza({
           status === "TIMED_OUT" ||
           status === "CLOSED"
         ) {
-          subscribed = false;
-          setConnected(false);
-          setConnectionTimedOut(true);
+          retry();
         }
       });
     const connectionTimer = window.setTimeout(() => {
-      if (!subscribed) {
-        setConnected(false);
-        setConnectionTimedOut(true);
-      }
+      if (!subscribed) retry();
     }, 8000);
-    const refresh = window.setInterval(() => {
-      if (subscribed)
-        void room.track({
-          id: presenceId,
-          name: presenceName,
-          zone: zoneRef.current,
-          ...player.current,
-          facing: facingRef.current,
-          idleState: idlePhaseRef.current,
-          orange: orangeRef.current,
-        });
-    }, 5000);
     return () => {
-      window.clearInterval(refresh);
+      disposed = true;
       window.clearTimeout(connectionTimer);
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
       for (const timer of remoteIdleTimers.current.values())
         window.clearTimeout(timer);
       remoteIdleTimers.current.clear();
@@ -801,7 +801,7 @@ export default function CapyPlaza({
       setConnectionTimedOut(false);
       setNeighbors([]);
     };
-  }, [guest, presenceName]);
+  }, [guest, presenceName, reconnectAttempt]);
 
   useEffect(() => {
     if (connected) {
@@ -816,7 +816,7 @@ export default function CapyPlaza({
       });
       updateNeighborsRef.current();
     }
-  }, [zone, connected, presenceName, idlePhase, orangeTarget]);
+  }, [zone, connected, presenceName, idlePhase, orangeTarget, walking]);
 
   useEffect(() => {
     if (
